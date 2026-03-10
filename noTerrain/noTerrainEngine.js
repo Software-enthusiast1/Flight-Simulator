@@ -262,9 +262,197 @@
   // Place player on valid terrain
   const initialGroundHeight = getTerrainHeightAt(0, 0);
   player.pos[1] = Math.max(initialGroundHeight + 0.5, 0.5);
-  
-  // Create a cube in the world
-  createObject([0, 1, -5], [255, 100, 100]); // Red cube
+
+  // ===== TRIANGLE EDITOR =====
+  let editableTriangles = [
+    // // Long rectangle; body of plane for future flight simulator
+    // {verts: [[-1, -1, -1], [7, -1, -1], [7, 1, -1]], color: [255, 100, 100]},
+    // {verts: [[-1, -1, -1], [7, 1, -1], [-1, 1, -1]], color: [255, 100, 100]},
+    // {verts: [[-1, -1, 1], [7, 1, 1], [7, -1, 1]], color: [255, 100, 100]},
+    // {verts: [[-1, -1, 1], [-1, 1, 1], [7, 1, 1]], color: [255, 100, 100]},
+    // {verts: [[-1, -1, -1], [-1, 1, 1], [-1, -1, 1]], color: [255, 100, 100]},
+    // {verts: [[-1, 1, -1], [-1, 1, 1], [-1, -1, -1]], color: [255, 100, 100]},
+    // {verts: [[7, -1, -1], [7, 1, 1], [7, -1, 1]], color: [255, 100, 100]},
+    // {verts: [[7, 1, -1], [7, 1, 1], [7, -1, -1]], color: [255, 100, 100]},
+    // {verts: [[7, -1, 1], [-1, -1, -1], [-1, -1, 1]], color: [255, 100, 100]},
+    // {verts: [[7, -1, 1], [7, -1, -1], [-1, -1, -1]], color: [255, 100, 100]},
+    // {verts: [[7, 1, 1], [-1, 1, -1], [-1, 1, 1]], color: [255, 100, 100]},
+    // {verts: [[7, 1, 1], [7, 1, -1], [-1, 1, -1]], color: [255, 100, 100]}
+
+    // Cube exaple and test
+    {verts: [[-1, -1, -1], [1, -1, -1], [1, 1, -1]], color: [255, 100, 100]},
+    {verts: [[-1, -1, -1], [1, 1, -1], [-1, 1, -1]], color: [255, 100, 100]},
+    {verts: [[-1, -1, 1], [1, 1, 1], [1, -1, 1]], color: [255, 100, 100]},
+    {verts: [[-1, -1, 1], [-1, 1, 1], [1, 1, 1]], color: [255, 100, 100]},
+    {verts: [[-1, -1, -1], [-1, 1, 1], [-1, -1, 1]], color: [255, 100, 100]},
+    {verts: [[-1, 1, -1], [-1, 1, 1], [-1, -1, -1]], color: [255, 100, 100]},
+    {verts: [[1, -1, -1], [1, 1, 1], [1, -1, 1]], color: [255, 100, 100]},
+    {verts: [[1, 1, -1], [1, 1, 1], [1, -1, -1]], color: [255, 100, 100]},
+    {verts: [[1, -1, 1], [-1, -1, -1], [-1, -1, 1]], color: [255, 100, 100]},
+    {verts: [[1, -1, 1], [1, -1, -1], [-1, -1, -1]], color: [255, 100, 100]},
+    {verts: [[1, 1, 1], [-1, 1, -1], [-1, 1, 1]], color: [255, 100, 100]},
+    {verts: [[1, 1, 1], [1, 1, -1], [-1, 1, -1]], color: [255, 100, 100]}
+  ];
+
+  function updateSceneFromTriangles() {
+    sceneTriangles = editableTriangles.map(tri => ({
+      verts: tri.verts.map(v => [...v]), // deep copy
+      color: [...tri.color]
+    }));
+  }
+
+  function createTriangleEditor() {
+    const panel = document.getElementById('editorPanel');
+    let html = '<h3>Triangle Editor</h3>';
+
+    editableTriangles.forEach((triangle, triIdx) => {
+      html += `<div class="triangle-row" style="border:1px solid #0f0;padding:10px;margin-bottom:15px;border-radius:5px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <label style="color:#0f0;font-weight:bold;">Triangle ${triIdx}</label>
+          <button class="delete-triangle-btn" data-triangle="${triIdx}" style="background:#f00;color:#fff;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;">X</button>
+        </div>`;
+
+      triangle.verts.forEach((vertex, vertIdx) => {
+        html += `
+          <div class="vertex-row" style="margin-bottom:5px;">
+            <label style="color:#aaa;font-size:11px;">Vertex ${vertIdx}</label>
+            <input type="text" placeholder="X" class="vertex-input" data-triangle="${triIdx}" data-vertex="${vertIdx}" data-axis="0" value="${vertex[0]}" style="width:30%;margin-right:2px;">
+            <input type="text" placeholder="Y" class="vertex-input" data-triangle="${triIdx}" data-vertex="${vertIdx}" data-axis="1" value="${vertex[1]}" style="width:30%;margin-right:2px;">
+            <input type="text" placeholder="Z" class="vertex-input" data-triangle="${triIdx}" data-vertex="${vertIdx}" data-axis="2" value="${vertex[2]}" style="width:30%;">
+          </div>
+        `;
+      });
+
+      html += `
+        <div class="color-row" style="margin-top:10px;">
+          <label style="color:#aaa;font-size:11px;">Color (R,G,B)</label>
+          <input type="text" placeholder="R" class="color-input" data-triangle="${triIdx}" data-color="0" value="${triangle.color[0]}" style="width:30%;margin-right:2px;">
+          <input type="text" placeholder="G" class="color-input" data-triangle="${triIdx}" data-color="1" value="${triangle.color[1]}" style="width:30%;margin-right:2px;">
+          <input type="text" placeholder="B" class="color-input" data-triangle="${triIdx}" data-color="2" value="${triangle.color[2]}" style="width:30%;">
+        </div>
+      </div>`;
+    });
+
+    html += `
+      <button id="addTriangleBtn" style="width:100%;padding:8px;background:#00f;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:bold;margin-bottom:10px;">Add New Triangle</button>
+      <button id="copyBtn">Copy sceneTriangles Array</button>
+      <div id="format-info" style="margin-top:10px;color:#aaa;font-size:11px;">
+        Format: sceneTriangles = [{verts: [[x,y,z],[x,y,z],[x,y,z]], color: [r,g,b]}, ...]
+      </div>
+    `;
+
+    panel.innerHTML = html;
+
+    // Add input listeners for vertices
+    document.querySelectorAll('.vertex-input').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const triIdx = parseInt(e.target.dataset.triangle);
+        const vertIdx = parseInt(e.target.dataset.vertex);
+        const axis = parseInt(e.target.dataset.axis);
+        const value = parseFloat(e.target.value);
+
+        if (!isNaN(value)) {
+          editableTriangles[triIdx].verts[vertIdx][axis] = value;
+          updateSceneFromTriangles();
+        }
+      });
+
+      input.addEventListener('input', (e) => {
+        const triIdx = parseInt(e.target.dataset.triangle);
+        const vertIdx = parseInt(e.target.dataset.vertex);
+        const axis = parseInt(e.target.dataset.axis);
+        const value = parseFloat(e.target.value);
+
+        if (!isNaN(value)) {
+          editableTriangles[triIdx].verts[vertIdx][axis] = value;
+          updateSceneFromTriangles();
+        }
+      });
+    });
+
+    // Add input listeners for colors
+    document.querySelectorAll('.color-input').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const triIdx = parseInt(e.target.dataset.triangle);
+        const colorIdx = parseInt(e.target.dataset.color);
+        const value = parseInt(e.target.value);
+
+        if (!isNaN(value)) {
+          editableTriangles[triIdx].color[colorIdx] = value;
+          updateSceneFromTriangles();
+        }
+      });
+
+      input.addEventListener('input', (e) => {
+        const triIdx = parseInt(e.target.dataset.triangle);
+        const colorIdx = parseInt(e.target.dataset.color);
+        const value = parseInt(e.target.value);
+
+        if (!isNaN(value)) {
+          editableTriangles[triIdx].color[colorIdx] = value;
+          updateSceneFromTriangles();
+        }
+      });
+    });
+
+    // Add delete triangle listeners
+    document.querySelectorAll('.delete-triangle-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const triIdx = parseInt(e.target.dataset.triangle);
+        editableTriangles.splice(triIdx, 1);
+        createTriangleEditor(); // Rebuild the UI
+        updateSceneFromTriangles();
+      });
+    });
+
+    // Add new triangle button
+    document.getElementById('addTriangleBtn').addEventListener('click', () => {
+      editableTriangles.push({
+        verts: [
+          [0, 0, 0],
+          [1, 0, 0],
+          [0, 1, 0]
+        ],
+        color: [255, 255, 255]
+      });
+      createTriangleEditor(); // Rebuild the UI
+      updateSceneFromTriangles();
+    });
+
+    // Add copy button listener
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      const code = editableTriangles
+        .map(tri => {
+          const vertsStr = tri.verts.map(v => `[${v[0]}, ${v[1]}, ${v[2]}]`).join(', ');
+          const colorStr = `[${tri.color[0]}, ${tri.color[1]}, ${tri.color[2]}]`;
+          return `{verts: [${vertsStr}], color: ${colorStr}}`;
+        })
+        .join(',\n  ');
+
+      const fullCode = `const sceneTriangles = [\n  ${code}\n];`;
+
+      navigator.clipboard.writeText(fullCode).then(() => {
+        const btn = document.getElementById('copyBtn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 2000);
+      });
+    });
+  }
+
+  // Toggle editor visibility
+  document.getElementById('editToggle').addEventListener('click', (e) => {
+    const panel = document.getElementById('editorPanel');
+    const isVisible = panel.style.display !== 'none';
+    panel.style.display = isVisible ? 'none' : 'block';
+    e.target.textContent = isVisible ? 'Show Editor' : 'Hide Editor';
+  });
+
+  createTriangleEditor();
+  updateSceneFromTriangles(); // Initialize scene with editable triangles
+  // ===== END TRIANGLE EDITOR =====
 
   function project(v){
     // camera looks down -Z; we expect z negative in front
