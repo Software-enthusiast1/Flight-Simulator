@@ -197,47 +197,6 @@
   // Build scene triangles array
   let sceneTriangles = [];
 
-  // Create a cube at a given position with a given size and color
-  function createObject(pos, color) {
-    const [x, y, z] = pos;
-    
-    // Define 8 vertices of the cube
-    const verts = [
-      [x - 1, y - 1, z - 1], // 0: bottom-left-back
-      [x, y - 1, z - 1], // 1: bottom-right-back
-      [x, y , z - 1], // 2: top-right-back
-      [x - 1, y, z - 1], // 3: top-left-back
-      [x - 1, y - 1, z], // 4: bottom-left-front
-      [x, y - 1, z], // 5: bottom-right-front
-      [x, y, z], // 6: top-right-front
-      [x - 1, y, z], // 7: top-left-front
-    ];
-
-    // Define 12 triangles (2 per face)
-    const faces = [
-      // Back face (z-)
-      [0, 2, 1], [0, 3, 2],
-      // Front face (z+)
-      [4, 5, 6], [4, 6, 7],
-      // Left face (x-)
-      [0, 4, 7], [0, 7, 3],
-      // Right face (x+)
-      [1, 2, 6], [1, 6, 5],
-      // Bottom face (y-)
-      [0, 1, 5], [0, 5, 4],
-      // Top face (y+)
-      [3, 7, 6], [3, 6, 2],
-    ];
-
-    // Create triangle objects
-    faces.forEach(face => {
-      sceneTriangles.push({
-        verts: [verts[face[0]], verts[face[1]], verts[face[2]]],
-        color: color
-      });
-    });
-  }
-
   function hslToRgb(h,s,l){
     // h in [0,1]
     let r,g,b;
@@ -264,35 +223,76 @@
   player.pos[1] = Math.max(initialGroundHeight + 0.5, 0.5);
 
   // ===== TRIANGLE EDITOR =====
-  let editableTriangles = [
-    // // Long rectangle; body of plane for future flight simulator
-    // {verts: [[-1, -1, -1], [7, -1, -1], [7, 1, -1]], color: [255, 100, 100]},
-    // {verts: [[-1, -1, -1], [7, 1, -1], [-1, 1, -1]], color: [255, 100, 100]},
-    // {verts: [[-1, -1, 1], [7, 1, 1], [7, -1, 1]], color: [255, 100, 100]},
-    // {verts: [[-1, -1, 1], [-1, 1, 1], [7, 1, 1]], color: [255, 100, 100]},
-    // {verts: [[-1, -1, -1], [-1, 1, 1], [-1, -1, 1]], color: [255, 100, 100]},
-    // {verts: [[-1, 1, -1], [-1, 1, 1], [-1, -1, -1]], color: [255, 100, 100]},
-    // {verts: [[7, -1, -1], [7, 1, 1], [7, -1, 1]], color: [255, 100, 100]},
-    // {verts: [[7, 1, -1], [7, 1, 1], [7, -1, -1]], color: [255, 100, 100]},
-    // {verts: [[7, -1, 1], [-1, -1, -1], [-1, -1, 1]], color: [255, 100, 100]},
-    // {verts: [[7, -1, 1], [7, -1, -1], [-1, -1, -1]], color: [255, 100, 100]},
-    // {verts: [[7, 1, 1], [-1, 1, -1], [-1, 1, 1]], color: [255, 100, 100]},
-    // {verts: [[7, 1, 1], [7, 1, -1], [-1, 1, -1]], color: [255, 100, 100]}
+  let editableTriangles = [];
 
-    // Cube exaple and test
-    {verts: [[-1, -1, -1], [1, -1, -1], [1, 1, -1]], color: [255, 100, 100]},
-    {verts: [[-1, -1, -1], [1, 1, -1], [-1, 1, -1]], color: [255, 100, 100]},
-    {verts: [[-1, -1, 1], [1, 1, 1], [1, -1, 1]], color: [255, 100, 100]},
-    {verts: [[-1, -1, 1], [-1, 1, 1], [1, 1, 1]], color: [255, 100, 100]},
-    {verts: [[-1, -1, -1], [-1, 1, 1], [-1, -1, 1]], color: [255, 100, 100]},
-    {verts: [[-1, 1, -1], [-1, 1, 1], [-1, -1, -1]], color: [255, 100, 100]},
-    {verts: [[1, -1, -1], [1, 1, 1], [1, -1, 1]], color: [255, 100, 100]},
-    {verts: [[1, 1, -1], [1, 1, 1], [1, -1, -1]], color: [255, 100, 100]},
-    {verts: [[1, -1, 1], [-1, -1, -1], [-1, -1, 1]], color: [255, 100, 100]},
-    {verts: [[1, -1, 1], [1, -1, -1], [-1, -1, -1]], color: [255, 100, 100]},
-    {verts: [[1, 1, 1], [-1, 1, -1], [-1, 1, 1]], color: [255, 100, 100]},
-    {verts: [[1, 1, 1], [1, 1, -1], [-1, 1, -1]], color: [255, 100, 100]}
-  ];
+  function createCactusAt(tx, tz, th, rnd) {
+    let tris = [];
+    // CACTUS: Tall, narrow, segmented, desert green
+    const cactusH = 1.2 + rnd()*0.6;
+    const cactusRad = 0.25 + rnd()*0.08;
+    const cactusColor = hslToRgb(0.32, 0.75, 0.35); // Warm desert green
+    const segments = 5 + Math.floor(rnd()*3);
+    
+    // Main trunk (cylinder-like)
+    const sides = 6;
+    const segmentH = cactusH / segments;
+    
+    for(let seg = 0; seg < segments; seg++){
+      const h1 = th + seg * segmentH;
+      const h2 = th + (seg + 1) * segmentH;
+      const rad1 = cactusRad * (1 + Math.sin(seg * 0.8) * 0.2); // Slight waviness
+      const rad2 = cactusRad * (1 + Math.sin((seg + 1) * 0.8) * 0.2);
+      
+      for(let s = 0; s < sides; s++){
+        const a1 = (s / sides) * Math.PI * 2;
+        const a2 = ((s + 1) / sides) * Math.PI * 2;
+        const v0 = [tx + Math.cos(a1) * rad1, h1, tz + Math.sin(a1) * rad1];
+        const v1 = [tx + Math.cos(a2) * rad1, h1, tz + Math.sin(a2) * rad1];
+        const v2 = [tx + Math.cos(a2) * rad2, h2, tz + Math.sin(a2) * rad2];
+        const v3 = [tx + Math.cos(a1) * rad2, h2, tz + Math.sin(a1) * rad2];
+        tris.push({ verts: [v0, v1, v2], color: cactusColor });
+        tris.push({ verts: [v0, v2, v3], color: cactusColor });
+      }
+    }
+    
+    // Add small arms/spines sticking out (simple spikes)
+    const spineColor = hslToRgb(0.08, 0.8, 0.4); // Dark brownish for spines
+    for(let seg = 0; seg < segments; seg += 2){
+      const segH = th + (seg + 0.5) * segmentH;
+      const armCount = 3 + Math.floor(rnd() * 2);
+      
+      for(let a = 0; a < armCount; a++){
+        const angle = (a / armCount) * Math.PI * 2;
+        const armLen = 0.25 + rnd() * 0.15;
+        const armX = tx + Math.cos(angle) * (cactusRad + armLen);
+        const armZ = tz + Math.sin(angle) * (cactusRad + armLen);
+        const armTipH = segH + rnd() * 0.2;
+        
+        const baseX = tx + Math.cos(angle) * cactusRad;
+        const baseZ = tz + Math.sin(angle) * cactusRad;
+        
+        // Simple triangular spike
+        const v0 = [baseX, segH, baseZ];
+        const v1 = [armX, armTipH, armZ];
+        const v2 = [baseX + (rnd() - 0.5) * 0.1, segH + 0.1, baseZ + (rnd() - 0.5) * 0.1];
+        tris.push({ verts: [v0, v1, v2], color: spineColor });
+      }
+    }
+    return tris;
+  }
+
+  editableTriangles.push(...createCactusAt(0, 0, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(2, 0, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(4, 0, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(6, 0, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(0, 2, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(2, 2, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(4, 2, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(6, 2, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(0, 4, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(2, 4, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(4, 4, 0, mulberry32(12345)));
+  editableTriangles.push(...createCactusAt(6, 4, 0, mulberry32(12345)));
 
   function updateSceneFromTriangles() {
     sceneTriangles = editableTriangles.map(tri => ({
