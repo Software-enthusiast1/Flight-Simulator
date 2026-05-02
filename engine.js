@@ -17,6 +17,8 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clearDepth(1.0);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
     // WebGL shader setup
     const vertexShaderSource = `
       attribute vec3 aPosition;
@@ -406,10 +408,31 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     return value / ampSum;
   }
 
+  // 4D perlin noise for wave animation (x, z, time, seed)
+  function perlinNoise4D(x, z, time, seed){
+    const inst = getSimplex(seed || 0);
+    let value = 0;
+    let amplitude = 1.0;
+    let frequency = 0.15;
+    const octaves = 3;
+    const lacunarity = 2.0;
+    const gain = 0.5;
+    let ampSum = 0;
+    for(let i=0;i<octaves;i++){
+      // Use time as a dimension for animation
+      value += inst.noise3D(x * frequency, z * frequency, time * frequency * 0.5) * amplitude;
+      ampSum += amplitude;
+      amplitude *= gain;
+      frequency *= lacunarity;
+    }
+    return value / ampSum;
+  }
+
   // Chunk-based world generation for infinite terrain
   const CHUNK_SIZE = 16;
-  const CHUNK_SPACING = 1.0; // must be 1.0 for chunks to align perfectly
+  const CHUNK_SPACING = 1.0;
   const worldChunks = new Map(); // key: "x,z", value: {tris}
+  const oceanChunks = new Map(); // key: "x,z", value: {tris}
   let worldSeed = 0;
   let lastPlayerChunkX = 0, lastPlayerChunkZ = 0;
   
@@ -430,133 +453,56 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     const offsetX = chunkX * CHUNK_SIZE * spacing;
     const offsetZ = chunkZ * CHUNK_SIZE * spacing;
     
-    // Get biome value (without discrete boundaries) for smooth transitions
-    // Adjusted weights and frequencies to favor snowy patches and reduce desert coverage.
-    const getBiomeValue = (x, z) => {
-      const low = perlinNoise(x * 0.0055, z * 0.0055, worldSeed) * 0.8; // very large-scale
-      const mid = perlinNoise(x * 0.035, z * 0.035, worldSeed + 1) * 0.45; // medium
-      const high = perlinNoise(x * 0.28, z * 0.28, worldSeed + 2) * 1.05; // high-frequency favors snow
-      const biomeVal = (low * 0.6 + mid * 0.4 + high * 1.3) / (0.6 + 0.4 + 1.3);
-      return biomeVal; // roughly in [-1,1]
+    const getBiomeTemp = (x, z) => {
+      //Outputs a random biome temp
+      const biomeTemp = perlinNoise(x * 0.1, z * 0.1, worldSeed + 999);
+      return biomeTemp;
     };
+
+    const getBiomeWater = (x, z) => {
+      // Biome probability to be an ocean instead
+      const biomeWater = perlinNoise(x * 0.11, z * 0.11);
+      return biomeWater;
+    }
     
     // Get discrete biome from continuous biome value
     const getBiome = (x, z) => {
-      const biomeVal = getBiomeValue(x, z);
-      if(biomeVal < -0.45) return 'ocean';
-      if(biomeVal < -0.3) return 'lake';
-      // Narrow desert band to reduce desert coverage
-      if(biomeVal < -0.1) return 'desert';
-      if(biomeVal < 0.50) return 'plains';
-      if(biomeVal < 0.6) return 'snowy_plains';
+      const biomeVal = getBiomeTemp(x, z);
+      const biomeWater = getBiomeWater(x, z);
+
+      //if(biomeWater > 0) return 'ocean';
+      if(biomeVal < -0.30) return 'desert';
+      if(biomeVal < 0.60) return 'plains';
+      if(biomeVal < 0.8) return 'snowy_plains';
       return 'mountains';
     };
     
     // Use perlin-like noise for better terrain with peaks
-    const heightAt = (x,z)=>{
-      // Start with multiple octaves of Perlin noise for smooth base
-      let h = perlinNoise(x, z, worldSeed) * 5.0; 
-      h += perlinNoise(x * 4, z * 4, worldSeed + 1) * 0.4;
+    const heightAt = (x, z)=>{
+      // Start with multiple octaves of Perlin noise
+      let h = (perlinNoise(x*0.7, z*0.7, worldSeed - 3) * 7.0) + 7; 
+      h += (perlinNoise(x * 2.5, z * 2.5, worldSeed - 2) * 0.4) + 0.4;
+      h += (perlinNoise(x * 5.5, z * 5.5, worldSeed - 1) * 0.1) + 0.1;
       
-      // Get biome value for smooth blending between biome heights
-      const biomeVal = getBiomeValue(x, z);
-      const biome = getBiome(x, z);
+      const biomeWater = getBiomeWater(x, z);
       
-      // Apply smooth blending based on biome value instead of hard transitions
-      // This prevents jagged borders by using the continuous biome noise
-      const t = (biomeVal + 0.6) / 1.1; // Normalize biome value to 0-1 range
-      const smoothT = Math.max(0, Math.min(1, t)); // Clamp to 0-1
+      // Wider, smoother transition zone using smoothstep-like blend
+      // Transition happens between biomeWater -0.3 (land) and 0.3 (ocean)
+      const transitionStart = -0.3;
+      const transitionEnd = 0.3;
+      const t = (biomeWater - transitionStart) / (transitionEnd - transitionStart);
+      const oceanBlend = Math.max(0, Math.min(1, t));
       
-      // Blend heights based on smooth biome transition
-        // helper smoothstep and mix to reduce abrupt jumps at biome boundaries
-        const smoothstep = (a, b, t) => {
-          const x = Math.max(0, Math.min(1, (t - a) / (b - a)));
-          return x * x * (3 - 2 * x);
-        };
-        const mix = (a, b, t) => a * (1 - t) + b * t;
+      // Use smoothstep to make the curve even smoother
+      const smoothBlend = oceanBlend * oceanBlend * (3 - 2 * oceanBlend);
+      
+      // Generate deep ocean terrain
+      const deepTerrain = perlinNoise(x*0.5, z*0.5, worldSeed - 50) * 8.0 - 30.0;
+      
+      // Blend between land terrain and deep ocean terrain
+      h = h * (1 - smoothBlend) + deepTerrain * smoothBlend;
 
-        if(biomeVal < -0.15){
-          // Ocean <-> Lake transition: use smooth interpolation instead of piecewise branches
-          const t = smoothstep(-0.6, -0.2, biomeVal);
-          const oceanH = h * 0.3 - 2.0;
-          const lakeH = h * 0.2 - 0.5;
-          h = mix(oceanH, lakeH, t);
-        } else if(biomeVal < 0.05){
-        // Lake/Desert transition
-        const blend = (biomeVal + 0.15) / 0.2;
-        if(blend < 0) h = h * 0.2 - 0.5;
-        else if(blend > 1) h = Math.abs(h) * 0.5 + 0.2;
-        else {
-          const h1 = h * 0.2 - 0.5;
-          const h2 = Math.abs(h) * 0.5 + 0.2;
-          h = h1 * (1-blend) + h2 * blend;
-        }
-      } else if(biomeVal < 0.3){
-        // Desert/Plains transition
-        const blend = (biomeVal - 0.05) / 0.25;
-        if(blend < 0) h = Math.abs(h) * 0.5 + 0.2;
-        else if(blend > 1) h = h * 0.3 + 0.2;
-        else {
-          const h1 = Math.abs(h) * 0.5 + 0.2;
-          const h2 = h * 0.3 + 0.2;
-          h = h1 * (1-blend) + h2 * blend;
-        }
-      } else if(biomeVal < 0.5){
-        // Plains/Snowy transition
-        const blend = (biomeVal - 0.3) / 0.2;
-        if(blend < 0) h = h * 0.3 + 0.2;
-        else if(blend > 1) h = h * 0.5 + 1.0;
-        else {
-          const h1 = h * 0.3 + 0.2;
-          const h2 = h * 0.5 + 1.0;
-          h = h1 * (1-blend) + h2 * blend;
-        }
-      } else {
-        // Snowy/Mountains transition and pure mountains
-        const blend = (biomeVal - 0.5) / 0.3;
-        let h2 = h * 0.5 + 1.0;
-        
-        // Add peaks only in mountain regions
-        if(blend > 0){
-          for(let octave = 0; octave < 3; octave++){
-            const freq = 0.003 * Math.pow(2, octave);
-            const amp = 1.0 / Math.pow(2, octave);
-            
-            const seedRnd = mulberry32((worldSeed + octave * 12345) | 0);
-            const offsetX_rnd = seedRnd() * Math.PI * 2;
-            const offsetZ_rnd = seedRnd() * Math.PI * 2;
-            
-            const peakVal = Math.sin(x * freq + offsetX_rnd) * Math.cos(z * freq + offsetZ_rnd);
-            
-            if(peakVal > 0.2){
-              const peakSpacing = 1.0 / freq;
-              const peakCenterX = Math.round(x / peakSpacing) * peakSpacing;
-              const peakCenterZ = Math.round(z / peakSpacing) * peakSpacing;
-              const distToPeak = Math.hypot(x - peakCenterX, z - peakCenterZ);
-              
-              const peakRadius = peakSpacing * 0.35;
-              const falloff = Math.max(0, 1 - (distToPeak / peakRadius));
-              
-              h2 += falloff * falloff * falloff * peakVal * amp * 8.0 * Math.max(0, blend);
-            }
-          }
-        }
-        
-        if(blend < 0) h = h * 0.5 + 1.0;
-        else if(blend > 1) h = h2;
-        else h = (h * 0.5 + 1.0) * (1-blend) + h2 * blend;
-      }
-
-      // Reduce water amplitude for oceans/lakes so they are flatter but still gentle hills
-      // Use continuous biomeVal blending instead of discrete biome classification
-      const waterT = smoothstep(-0.6, -0.2, biomeVal);
-      if(biomeVal < -0.25){
-        const oceanH = h * 1.0 - 2.2; // lower sea level and reduced amplitude
-        const lakeH = h * 1.6 - 0.6;  // shallower lakes
-        return mix(oceanH, lakeH, waterT);
-      }
-
-      return h * 3.5;
+      return h;
     };
     
     // Function to check if a point is at a peak (for coloring)
@@ -600,37 +546,6 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       }
     }
 
-    // apply a simple 3x3 smoothing kernel (weighted) to reduce abrupt jumps
-    const smoothIterations = 1;
-    const kernel = [
-      [1,2,1],
-      [2,4,2],
-      [1,2,1]
-    ];
-    const kernelSum = 16;
-
-    for(let it = 0; it < smoothIterations; it++){
-      const next = new Array(padded.length);
-      for(let ix = 0; ix < padSize; ix++){
-        for(let iz = 0; iz < padSize; iz++){
-          let acc = 0;
-          let sum = 0;
-          for(let kx = -1; kx <= 1; kx++){
-            for(let kz = -1; kz <= 1; kz++){
-              const sx = ix + kx;
-              const sz = iz + kz;
-              if(sx < 0 || sx >= padSize || sz < 0 || sz >= padSize) continue;
-              const w = kernel[kx+1][kz+1];
-              acc += padded[sx*padSize + sz].h * w;
-              sum += w;
-            }
-          }
-          next[ix*padSize + iz] = { x: padded[ix*padSize + iz].x, z: padded[ix*padSize + iz].z, h: acc / sum };
-        }
-      }
-      for(let i=0;i<padded.length;i++) padded[i] = next[i];
-    }
-
     // build terrain triangles from the inner grid (excluding padding)
     const heights = [];
     for(let ix = 0; ix < gridSize; ix++){
@@ -645,12 +560,10 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       const biome = getBiome(x, z);
       const atPeak = isAtPeak(x, z);
       if(biome === 'ocean') return hslToRgb(0.6, 0.9, 0.4);
-      if(biome === 'lake') return hslToRgb(0.58, 0.85, 0.5);
-      if(biome === 'desert') return h < -0.2 ? hslToRgb(0.13, 0.9, 0.55) : hslToRgb(0.12, 0.95, 0.52);
-      if(biome === 'plains') return h < 0.3 ? hslToRgb(0.28, 0.85, 0.48) : hslToRgb(0.25, 0.8, 0.42);
+      if(biome === 'desert') return h < -0.2 ? hslToRgb(0.12, 0.75, 0.54) : hslToRgb(0.13, 0.75, 0.58);
+      if(biome === 'plains') return h < 0.3 ? hslToRgb(0.28, 0.75, 0.42) : hslToRgb(0.25, 0.75, 0.36);
       if(biome === 'snowy_plains'){
-        if(h < 0.6) return hslToRgb(0.2, 0.7, 0.65);
-        if(h < 1.0) return hslToRgb(0,0,0.85);
+        if(h < 0.6) return hslToRgb(0,0,0.85);
         return hslToRgb(0,0,0.9);
       }
       if(biome === 'mountains'){
@@ -658,7 +571,7 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
         if(h > 2.5) return hslToRgb(0,0,0.7);
         if(h > 2.0) return hslToRgb(0,0,0.65);
         if(h > 1.5) return hslToRgb(0,0,0.55);
-        return hslToRgb(0.08,0.6,0.5);
+        return hslToRgb(0,0,0.5);
       }
       return hslToRgb(0,0,0.5);
     };
@@ -713,13 +626,13 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       }
     }
 
-    // add procedural trees to chunk (This is a proof of concept and to be used in develpment for procedually generating structures, the tree models are terrible)
+    // add procedural trees to chunk
     // Increase tree frequency and vary by biome: deserts get fewer, plains/mountains more
     let baseTrees = 5 + Math.floor(rnd() * 8);
     const biomeSampleX = offsetX + CHUNK_SIZE*0.5*spacing;
     const biomeSampleZ = offsetZ + CHUNK_SIZE*0.5*spacing;
     const sampleBiome = getBiome(biomeSampleX, biomeSampleZ);
-    if(sampleBiome === 'desert' || sampleBiome === 'lake' || sampleBiome === 'ocean') baseTrees = Math.max(0, Math.floor(baseTrees * 0.35));
+    if(sampleBiome === 'desert' || sampleBiome === 'ocean') baseTrees = Math.max(0, Math.floor(baseTrees * 0.35));
     if(sampleBiome === 'plains' || sampleBiome === 'snowy_plains') baseTrees = Math.max(1, Math.floor(baseTrees * 1.2));
     if(sampleBiome === 'mountains') baseTrees = Math.max(2, Math.floor(baseTrees * 1.6));
     const treeCount = baseTrees;
@@ -756,15 +669,15 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       const biome = getBiome(tx, tz);
 
       // Only place vegetation in appropriate biomes
-      if(biome === 'ocean' || biome === 'lake') continue;
+      if(biome === 'ocean') continue;
 
       let canPlaceVegetation = false;
       let vegetationType = null;
 
-      // Biome-specific height ranges and vegetation types
+      // Biome-specific height ranges and vegetation types (prevent spawning below y=0)
       if(biome === 'desert'){
         // Desert gets cacti
-        if(th > -0.5 && th < 0.8) {
+        if(th > 0 && th < 0.8) {
           canPlaceVegetation = true;
           vegetationType = 'cactus';
         }
@@ -793,7 +706,7 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       if(vegetationType === 'cactus'){
         // CACTUS: Tall, narrow, segmented, desert green
         const cactusH = 1.2 + rnd()*0.6;
-        const cactusRad = 0.15 + rnd()*0.08;
+        const cactusRad = 0.25 + rnd()*0.08;
         const cactusColor = hslToRgb(0.32, 0.75, 0.35); // Warm desert green
         const segments = 5 + Math.floor(rnd()*3);
         
@@ -814,8 +727,14 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
             const v1 = [tx + Math.cos(a2) * rad1, h1, tz + Math.sin(a2) * rad1];
             const v2 = [tx + Math.cos(a2) * rad2, h2, tz + Math.sin(a2) * rad2];
             const v3 = [tx + Math.cos(a1) * rad2, h2, tz + Math.sin(a1) * rad2];
-            tris.push({ verts: [v0, v1, v2], color: cactusColor });
-            tris.push({ verts: [v0, v2, v3], color: cactusColor });
+            tris.push({ verts: [v0, v2, v1], color: cactusColor });
+            tris.push({ verts: [v0, v3, v2], color: cactusColor });
+            
+	    // Top (cone shape)
+	    if (seg + 1 == segments){
+	      const v4 = [tx, th + (seg + 1.5) * segmentH , tz];
+              tris.push({ verts: [v2, v3, v4], color: cactusColor });
+	    }
           }
         }
         
@@ -823,23 +742,33 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
         const spineColor = hslToRgb(0.08, 0.8, 0.4); // Dark brownish for spines
         for(let seg = 0; seg < segments; seg += 2){
           const segH = th + (seg + 0.5) * segmentH;
-          const armCount = 3 + Math.floor(rnd() * 2);
+          const armCount = 5 + Math.floor(rnd() * 2);
           
           for(let a = 0; a < armCount; a++){
-            const angle = (a / armCount) * Math.PI * 2;
-            const armLen = 0.25 + rnd() * 0.15;
+            const spineH = segH + (rnd() - 0.5) * segH * 0.05;
+
+	        const angle = ((a / armCount) * Math.PI * 2);
+            const armLen = 0.1 + rnd() * 0.15;
             const armX = tx + Math.cos(angle) * (cactusRad + armLen);
             const armZ = tz + Math.sin(angle) * (cactusRad + armLen);
-            const armTipH = segH + rnd() * 0.2;
+            const armTipH = spineH + rnd() * 0.2;
             
-            const baseX = tx + Math.cos(angle) * cactusRad;
-            const baseZ = tz + Math.sin(angle) * cactusRad;
+	        const armThickness = 0.1;
+            const baseX0 = tx + Math.sin(0-angle) * armThickness;
+            const baseZ0 = tz + Math.cos(0-angle) * armThickness;
+	        const baseX1 = 2 * tx - baseX0;
+	        const baseZ1 = 2 * tz - baseZ0;
             
             // Simple triangular spike
-            const v0 = [baseX, segH, baseZ];
+            const v0 = [baseX0, spineH, baseZ0];
             const v1 = [armX, armTipH, armZ];
-            const v2 = [baseX + (rnd() - 0.5) * 0.1, segH + 0.1, baseZ + (rnd() - 0.5) * 0.1];
+            const v2 = [baseX0, spineH + armThickness, baseZ0];
+	        const v3 = [baseX1, spineH, baseZ1];
+            const v4 = [baseX1, spineH + armThickness, baseZ1];
+	        tris.push({ verts: [v0, v3, v1], color: spineColor });
+	        tris.push({ verts: [v1, v4, v2], color: spineColor });
             tris.push({ verts: [v0, v1, v2], color: spineColor });
+	        tris.push({ verts: [v3, v4, v1], color: spineColor });
           }
         }
       }
@@ -991,6 +920,49 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     rebuildSceneTriangles(seed);
   }
 
+  function generateOceanChunk(chunkX, chunkZ, time){
+    const key = getChunkKey(chunkX, chunkZ);
+    // Don't cache ocean chunks since they animate
+    
+    const tris = [];
+    const spacing = CHUNK_SPACING;
+    
+    const offsetX = chunkX * CHUNK_SIZE * spacing;
+    const offsetZ = chunkZ * CHUNK_SIZE * spacing;
+    
+    const oceanColor = hslToRgb(0.55, 1, 0.60);
+    
+    // Generate ocean surface mesh with animated waves
+    for(let ix = 0; ix < CHUNK_SIZE; ix++){
+      for(let iz = 0; iz < CHUNK_SIZE; iz++){
+        const x0 = offsetX + ix * spacing;
+        const z0 = offsetZ + iz * spacing;
+        const x1 = offsetX + (ix + 1) * spacing;
+        const z1 = offsetZ + (iz + 1) * spacing;
+        
+        // Get wave height at each corner using 4D perlin noise
+        const amplitude = 0.85; // Wave amplitude
+        const waveLength = 0.4; // Wave length
+        const h00 = perlinNoise4D(x0 * waveLength, z0 * waveLength, time * 0.001, worldSeed) * amplitude;
+        const h10 = perlinNoise4D(x1 * waveLength, z0 * waveLength, time * 0.001, worldSeed) * amplitude;
+        const h01 = perlinNoise4D(x0 * waveLength, z1 * waveLength, time * 0.001, worldSeed) * amplitude;
+        const h11 = perlinNoise4D(x1 * waveLength, z1 * waveLength, time * 0.001, worldSeed) * amplitude;
+        
+        // Water surface is at y=0 + wave height
+        const v00 = [x0, h00, z0];
+        const v10 = [x1, h10, z0];
+        const v01 = [x0, h01, z1];
+        const v11 = [x1, h11, z1];
+        
+        // Create two triangles per quad
+        tris.push({ verts: [v00, v11, v10], color: oceanColor });
+        tris.push({ verts: [v00, v01, v11], color: oceanColor });
+      }
+    }
+    
+    return { tris };
+  }
+
   function rebuildSceneTriangles(seed){
     sceneTriangles = [];
     // Get player chunk position
@@ -1004,6 +976,22 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
         sceneTriangles.push(...chunk.tris);
       }
     }
+  }
+
+  function rebuildOceanTriangles(time){
+    const oceanTriangles = [];
+    // Get player chunk position
+    const playerChunkX = Math.floor(player.pos[0] / (CHUNK_SIZE * CHUNK_SPACING));
+    const playerChunkZ = Math.floor(player.pos[2] / (CHUNK_SIZE * CHUNK_SPACING));
+    
+    // Generate ocean chunks around player (5x5 grid)
+    for(let cx=playerChunkX-2; cx<=playerChunkX+2; cx++){
+      for(let cz=playerChunkZ-2; cz<=playerChunkZ+2; cz++){
+        const chunk = generateOceanChunk(cx, cz, time * 2);
+        oceanTriangles.push(...chunk.tris);
+      }
+    }
+    return oceanTriangles;
   }
 
   // initial world
@@ -1093,6 +1081,10 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     const up = [0, 1, 0];
     const view = lookAtMatrix(eye, target, up);
     drawTriangles(sceneTriangles, projection, view);
+    
+    // Draw animated ocean
+    const oceanTriangles = rebuildOceanTriangles(now);
+    drawTriangles(oceanTriangles, projection, view);
 
     requestAnimationFrame(frame);
   }

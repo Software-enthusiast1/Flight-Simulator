@@ -15,6 +15,9 @@
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clearDepth(1.0);
+    // Enable backface culling
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
   window.addEventListener('resize', resize);
   resize();
 
