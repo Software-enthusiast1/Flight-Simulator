@@ -166,11 +166,9 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
   const JUMP_FORCE = 6.5; // units/sec
   const FRICTION = 0.99; // per frame
   const GROUND_FRICTION = 0.95;
-  const RENDER_DISTANCE = 500; // units
-  const CHUNK_REGEN_DIST = 30; // regen chunks when player is this far from center
 
   function resetCamera(){ 
-    player.pos = [0, 2, 5]; 
+    player.pos = [7, 0, 0];
     player.vel = [0, 0, 0];
     player.yaw = 0; 
     player.pitch = 0;
@@ -431,6 +429,7 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
   // Chunk-based world generation for infinite terrain
   const CHUNK_SIZE = 16;
   const CHUNK_SPACING = 1.0;
+  const CHUNK_RENDER_DIST = 6; // in chunks ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   const worldChunks = new Map(); // key: "x,z", value: {tris}
   const oceanChunks = new Map(); // key: "x,z", value: {tris}
   let worldSeed = 0;
@@ -461,19 +460,17 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
 
     const getBiomeWater = (x, z) => {
       // Biome probability to be an ocean instead
-      const biomeWater = perlinNoise(x * 0.11, z * 0.11);
+      const biomeWater = perlinNoise(x * 0.11, z * 0.11, worldSeed - 999);
       return biomeWater;
     }
     
     // Get discrete biome from continuous biome value
     const getBiome = (x, z) => {
       const biomeVal = getBiomeTemp(x, z);
-      const biomeWater = getBiomeWater(x, z);
 
-      //if(biomeWater > 0) return 'ocean';
-      if(biomeVal < -0.30) return 'desert';
-      if(biomeVal < 0.60) return 'plains';
-      if(biomeVal < 0.8) return 'snowy_plains';
+      if(biomeVal < -0.40) return 'desert';
+      if(biomeVal < 0.55) return 'plains';
+      if(biomeVal < 0.7) return 'snowy_plains';
       return 'mountains';
     };
     
@@ -488,8 +485,8 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       
       // Wider, smoother transition zone using smoothstep-like blend
       // Transition happens between biomeWater -0.3 (land) and 0.3 (ocean)
-      const transitionStart = -0.3;
-      const transitionEnd = 0.3;
+      const transitionStart = 0;
+      const transitionEnd = 0.5;
       const t = (biomeWater - transitionStart) / (transitionEnd - transitionStart);
       const oceanBlend = Math.max(0, Math.min(1, t));
       
@@ -559,18 +556,15 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     const colorByBiome = (h, x, z) => {
       const biome = getBiome(x, z);
       const atPeak = isAtPeak(x, z);
-      if(biome === 'ocean') return hslToRgb(0.6, 0.9, 0.4);
-      if(biome === 'desert') return h < -0.2 ? hslToRgb(0.12, 0.75, 0.54) : hslToRgb(0.13, 0.75, 0.58);
-      if(biome === 'plains') return h < 0.3 ? hslToRgb(0.28, 0.75, 0.42) : hslToRgb(0.25, 0.75, 0.36);
+      if(biome === 'desert') return h < 6 ? hslToRgb(0.12, 0.75, 0.54) : hslToRgb(0.13, 0.75, 0.58);
+      if(biome === 'plains') return h < 6 ? hslToRgb(0.28, 0.75, 0.42) : hslToRgb(0.25, 0.75, 0.36);
       if(biome === 'snowy_plains'){
-        if(h < 0.6) return hslToRgb(0,0,0.85);
+        if(h < 6) return hslToRgb(0,0,0.85);
         return hslToRgb(0,0,0.9);
       }
       if(biome === 'mountains'){
         if(atPeak) return hslToRgb(0,0,0.95);
-        if(h > 2.5) return hslToRgb(0,0,0.7);
-        if(h > 2.0) return hslToRgb(0,0,0.65);
-        if(h > 1.5) return hslToRgb(0,0,0.55);
+        if(h > 6) return hslToRgb(0,0,0.55);
         return hslToRgb(0,0,0.5);
       }
       return hslToRgb(0,0,0.5);
@@ -628,32 +622,17 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
 
     // add procedural trees to chunk
     // Increase tree frequency and vary by biome: deserts get fewer, plains/mountains more
-    let baseTrees = 5 + Math.floor(rnd() * 8);
+    let baseTrees = -10 + Math.floor(rnd() * 8);
     const biomeSampleX = offsetX + CHUNK_SIZE*0.5*spacing;
     const biomeSampleZ = offsetZ + CHUNK_SIZE*0.5*spacing;
     const sampleBiome = getBiome(biomeSampleX, biomeSampleZ);
-    if(sampleBiome === 'desert' || sampleBiome === 'ocean') baseTrees = Math.max(0, Math.floor(baseTrees * 0.35));
+    if(sampleBiome === 'desert') baseTrees = Math.max(0, Math.floor(baseTrees * 0.35));
     if(sampleBiome === 'plains' || sampleBiome === 'snowy_plains') baseTrees = Math.max(1, Math.floor(baseTrees * 1.2));
     if(sampleBiome === 'mountains') baseTrees = Math.max(2, Math.floor(baseTrees * 1.6));
     const treeCount = baseTrees;
 
-    // Generate clustered tree positions deterministically using rnd
+    // // Generate tree positions deterministically using rnd
     const positions = [];
-    const clusters = Math.max(1, Math.floor(treeCount / 3));
-    for(let c=0;c<clusters;c++){
-      const cx = offsetX + (rnd()-0.5) * CHUNK_SIZE * spacing * 0.7;
-      const cz = offsetZ + (rnd()-0.5) * CHUNK_SIZE * spacing * 0.7;
-      const clusterSize = 2 + Math.floor(rnd() * Math.max(2, Math.floor(treeCount/2)));
-      const radius = 1 + rnd() * (CHUNK_SIZE * 0.25);
-      for(let i=0;i<clusterSize;i++){
-        const rx = (rnd() - 0.5) * 2;
-        const rz = (rnd() - 0.5) * 2;
-        const tx = cx + rx * radius;
-        const tz = cz + rz * radius;
-        positions.push({x:tx,z:tz,cluster:true});
-      }
-    }
-    // Add a few outliers spread across the chunk
     const outliers = Math.max(1, Math.floor(treeCount * 0.3));
     for(let o=0;o<outliers;o++){
       const tx = offsetX + (rnd()-0.5) * CHUNK_SIZE * spacing * 0.95;
@@ -668,34 +647,29 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       const th = heightAt(tx, tz);
       const biome = getBiome(tx, tz);
 
-      // Only place vegetation in appropriate biomes
-      if(biome === 'ocean') continue;
-
       let canPlaceVegetation = false;
       let vegetationType = null;
 
       // Biome-specific height ranges and vegetation types (prevent spawning below y=0)
       if(biome === 'desert'){
         // Desert gets cacti
-        if(th > 0 && th < 0.8) {
+        if(th > 0) {
           canPlaceVegetation = true;
           vegetationType = 'cactus';
         }
       } else if(biome === 'plains'){
-        // Plains prefer oaks and shrubs
-        if(th > 0.1 && th < 0.5) {
+        if(th > 0) {
           canPlaceVegetation = true;
-          vegetationType = rnd() > 0.4 ? 'oak' : 'shrub';
+          vegetationType = 'oak';
         }
       } else if(biome === 'snowy_plains'){
-        // Snowy plains prefer evergreens and shrubs
-        if(th > 0.8 && th < 1.5) {
+        if(th > 0) {
           canPlaceVegetation = true;
-          vegetationType = rnd() > 0.5 ? 'evergreen' : 'shrub';
+          vegetationType = 'evergreen';
         }
       } else if(biome === 'mountains'){
         // Mountains prefer tall evergreens
-        if(th > 1.0 && th < 3.0) {
+        if(th > 0) {
           canPlaceVegetation = true;
           vegetationType = 'evergreen';
         }
@@ -730,179 +704,134 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
             tris.push({ verts: [v0, v2, v1], color: cactusColor });
             tris.push({ verts: [v0, v3, v2], color: cactusColor });
             
-	    // Top (cone shape)
-	    if (seg + 1 == segments){
-	      const v4 = [tx, th + (seg + 1.5) * segmentH , tz];
+            // Top (cone shape)
+            if (seg + 1 == segments){
+              const v4 = [tx, th + (seg + 1.5) * segmentH , tz];
               tris.push({ verts: [v2, v3, v4], color: cactusColor });
-	    }
+            } else if (seg === 0){ // Bottom to make sure you cannot see inside with uneven terrain
+              const v4 = [tx, th - segmentH * 2, tz];
+              tris.push({ verts: [v0, v1, v4], color: cactusColor });
+            }
           }
         }
         
         // Add small arms/spines sticking out (simple spikes)
         const spineColor = hslToRgb(0.08, 0.8, 0.4); // Dark brownish for spines
         for(let seg = 0; seg < segments; seg += 2){
+          if(seg === segments - 1) continue;
           const segH = th + (seg + 0.5) * segmentH;
           const armCount = 5 + Math.floor(rnd() * 2);
           
           for(let a = 0; a < armCount; a++){
             const spineH = segH + (rnd() - 0.5) * segH * 0.05;
 
-	        const angle = ((a / armCount) * Math.PI * 2);
+            const angle = ((a / armCount) * Math.PI * 2);
             const armLen = 0.1 + rnd() * 0.15;
             const armX = tx + Math.cos(angle) * (cactusRad + armLen);
             const armZ = tz + Math.sin(angle) * (cactusRad + armLen);
             const armTipH = spineH + rnd() * 0.2;
             
-	        const armThickness = 0.1;
+            const armThickness = 0.1;
             const baseX0 = tx + Math.sin(0-angle) * armThickness;
             const baseZ0 = tz + Math.cos(0-angle) * armThickness;
-	        const baseX1 = 2 * tx - baseX0;
-	        const baseZ1 = 2 * tz - baseZ0;
+            const baseX1 = 2 * tx - baseX0;
+            const baseZ1 = 2 * tz - baseZ0;
             
             // Simple triangular spike
             const v0 = [baseX0, spineH, baseZ0];
             const v1 = [armX, armTipH, armZ];
             const v2 = [baseX0, spineH + armThickness, baseZ0];
-	        const v3 = [baseX1, spineH, baseZ1];
+            const v3 = [baseX1, spineH, baseZ1];
             const v4 = [baseX1, spineH + armThickness, baseZ1];
-	        tris.push({ verts: [v0, v3, v1], color: spineColor });
-	        tris.push({ verts: [v1, v4, v2], color: spineColor });
+            tris.push({ verts: [v0, v3, v1], color: spineColor });
+            tris.push({ verts: [v1, v4, v2], color: spineColor });
             tris.push({ verts: [v0, v1, v2], color: spineColor });
-	        tris.push({ verts: [v3, v4, v1], color: spineColor });
+            tris.push({ verts: [v3, v4, v1], color: spineColor });
           }
         }
       }
       else if(vegetationType === 'evergreen'){
         // Type 0: TALL SKINNY EVERGREEN (Pine) - vertical spike shape
-        const trunkH = biome === 'mountains' ? 2.5 + rnd()*1.5 : 1.5 + rnd()*0.8;
-        const baseRad = 0.2 + rnd()*0.1;
-        const apexH = th + trunkH + 2.5 + rnd()*0.8;
-        const treeColor = biome === 'snowy_plains' ? 
-          hslToRgb(0.35, 0.7, 0.35) : // Darker green for snowy areas
-          hslToRgb(0.38, 0.85, 0.25); // Dark forest green for mountains
+        const height = 10 + rnd() * 1.5;
+        const leavesHeight = th + height * 0.1 * rnd() + 0.8;
+        const treeColor = hslToRgb(0.35, 0.7, 0.35); // Darker green
         const trunkColor = hslToRgb(0.05, 0.6, 0.15); // dark brown
         
-        // Very thin trunk
-        const trunkRad = 0.05;
-        const sides = 4;
-        const trunkTop = [tx, th + trunkH, tz];
+        // Trunk
+        const trunkRad = 1.5;
+        const sides = 6;
+        const trunkTop = [tx, th + height, tz];
         for(let s=0; s<sides; s++){
           const a1 = (s/sides)*Math.PI*2;
           const a2 = ((s+1)/sides)*Math.PI*2;
           const v1 = [tx + Math.cos(a1)*trunkRad, th, tz + Math.sin(a1)*trunkRad];
           const v2 = [tx + Math.cos(a2)*trunkRad, th, tz + Math.sin(a2)*trunkRad];
-          tris.push({ verts: [v1, v2, trunkTop], color: trunkColor });
+          tris.push({ verts: [v2, v1, trunkTop], color: trunkColor });
+          // Bottom to make sure you cannot see inside with uneven terrain
+          tris.push({ verts: [v1, v2, [tx, 0 - height, tz]], color: trunkColor });
         }
         
-        // Very tall, very narrow cone
-        const layers = 8;
+        // Leaves
+        const layers = 6;
         for(let lay=0; lay<layers; lay++){
-          const layRad = baseRad * Math.pow(1 - lay/(layers+1), 2.5);
-          const layH = th + trunkH + (apexH - th - trunkH)*lay/(layers+1);
-          const nextRad = baseRad * Math.pow(1 - (lay+1)/(layers+1), 2.5);
-          const nextH = th + trunkH + (apexH - th - trunkH)*(lay+1)/(layers+1);
+          const layerHeight = leavesHeight + (height - (leavesHeight - th)) * (lay / (layers - 1));
+          const layerRad = 0.4 * Math.pow(1 - lay / (layers - 1), 0.5) * height;
           
+          let random1 = rnd()*0.75;
+          let random2 = rnd()*0.75;
+          let finalRandom = random1;
           for(let s=0; s<sides; s++){
-            const a1 = (s/sides)*Math.PI*2;
+            if(s === sides-1) random2 = finalRandom;
+            const a1 = (s/(sides))*Math.PI*2;
             const a2 = ((s+1)/sides)*Math.PI*2;
-            const v0 = [tx + Math.cos(a1)*layRad, layH, tz + Math.sin(a1)*layRad];
-            const v1 = [tx + Math.cos(a2)*layRad, layH, tz + Math.sin(a2)*layRad];
-            const v2 = [tx + Math.cos(a2)*nextRad, nextH, tz + Math.sin(a2)*nextRad];
-            const v3 = [tx + Math.cos(a1)*nextRad, nextH, tz + Math.sin(a1)*nextRad];
-            tris.push({ verts: [v0, v1, v2], color: treeColor });
-            tris.push({ verts: [v0, v2, v3], color: treeColor });
+            const v0 = [tx + Math.cos(a1)*(layerRad), layerHeight + random1, tz + Math.sin(a1)*(layerRad)];
+            const v1 = [tx + Math.cos(a2)*(layerRad), layerHeight + random2, tz + Math.sin(a2)*(layerRad)];
+            const v2 = trunkTop;
+            const v3 = [tx, layerHeight, tz]
+            tris.push({ verts: [v0, v2, v1], color: treeColor });
+            tris.push({ verts: [v0, v1, v3], color: treeColor });
+            random1 = random2;
+            random2 = rnd()*0.75;
           }
         }
       }
       else if(vegetationType === 'oak'){
-        // Type 1: WIDE SPREADING OAK - massive crown, short trunk
-        const trunkH = 0.6 + rnd()*0.3;
-        const maxRad = 0.65 + rnd()*0.3;
-        const topH = th + trunkH + maxRad;
-        const treeColor = hslToRgb(0.28, 0.75, 0.36); // bright medium green
-        const trunkColor = hslToRgb(0.08, 0.7, 0.25); // thicker brown trunk
+        // Type 1: WIDE SPREADING OAK - big crown, short trunk
+        const height = 5 + rnd();
+        const leavesHeight = th + height * 0.1 * rnd() + 0.8;
+        const treeColor = hslToRgb(0.35, 0.8 + rnd() * 0.4, 0.20 + rnd() * 0.4); // Darker green
+        const trunkColor = hslToRgb(0.05, 0.6, 0.15); // dark brown
         
-        // Very thick chunky trunk
-        const trunkRad = 0.25;
-        const sides = 12;
-        const trunkTop = [tx, th + trunkH, tz];
+        // Thin trunk
+        const trunkRad = 0.4;
+        const sides = 6;
+        const trunkTop = [tx, th + height, tz];
         for(let s=0; s<sides; s++){
           const a1 = (s/sides)*Math.PI*2;
           const a2 = ((s+1)/sides)*Math.PI*2;
           const v1 = [tx + Math.cos(a1)*trunkRad, th, tz + Math.sin(a1)*trunkRad];
           const v2 = [tx + Math.cos(a2)*trunkRad, th, tz + Math.sin(a2)*trunkRad];
-          tris.push({ verts: [v1, v2, trunkTop], color: trunkColor });
+          tris.push({ verts: [v2, v1, trunkTop], color: trunkColor });
+          // Bottom to make sure you cannot see inside with uneven terrain
+          tris.push({ verts: [v1, v2, [tx, 0 - height, tz]], color: trunkColor });
         }
         
-        // 4 wide overlapping spheres for massive crown
-        const layers = 4;
+        // Leaves
+        const layers = 8;
         for(let lay=0; lay<layers; lay++){
-          const layRad = maxRad * (1 - lay*0.1);
-          const layH = th + trunkH + (maxRad * 0.6) * lay;
-          const nextRad = maxRad * (1 - (lay+1)*0.1);
-          const nextH = th + trunkH + (maxRad * 0.6) * (lay+1);
+          const layerHeight = leavesHeight + (height - (leavesHeight - th)) * (lay / (layers - 1));
+          const layerRad = 0.2 * (1 - lay / (layers - 1)) * height;
           
           for(let s=0; s<sides; s++){
             const a1 = (s/sides)*Math.PI*2;
             const a2 = ((s+1)/sides)*Math.PI*2;
-            const v0 = [tx + Math.cos(a1)*layRad, layH, tz + Math.sin(a1)*layRad];
-            const v1 = [tx + Math.cos(a2)*layRad, layH, tz + Math.sin(a2)*layRad];
-            const v2 = [tx + Math.cos(a2)*nextRad, nextH, tz + Math.sin(a2)*nextRad];
-            const v3 = [tx + Math.cos(a1)*nextRad, nextH, tz + Math.sin(a1)*nextRad];
-            tris.push({ verts: [v0, v1, v2], color: treeColor });
-            tris.push({ verts: [v0, v2, v3], color: treeColor });
+            const v0 = [tx + Math.cos(a1)*layerRad, layerHeight, tz + Math.sin(a1)*layerRad];
+            const v1 = [tx + Math.cos(a2)*layerRad, layerHeight, tz + Math.sin(a2)*layerRad];
+            const v2 = trunkTop;
+            const v3 = [tx, layerHeight, tz];
+            tris.push({ verts: [v0, v2, v1], color: treeColor });
+            tris.push({ verts: [v0, v1, v3], color: treeColor });
           }
-        }
-      }
-      else if(vegetationType === 'shrub'){
-        // Type 2: SQUAT DENSE SHRUB
-        const shrubH = 0.3 + rnd()*0.15;
-        const shrubRad = 0.35 + rnd()*0.15;
-        const shrubColor = biome === 'snowy_plains' ?
-          hslToRgb(0.35, 0.6, 0.5) : // Lighter frosted look for snowy
-          hslToRgb(0.25, 0.8, 0.38); // Bright yellowish-green for plains
-        const sides = 10;
-        
-        // Dense rounded dome shape
-        const apexH = th + shrubH;
-        const apex = [tx, apexH, tz];
-        
-        // Base circle at ground
-        const baseHeight = th;
-        const baseRad = shrubRad;
-        for(let s=0; s<sides; s++){
-          const a1 = (s/sides)*Math.PI*2;
-          const a2 = ((s+1)/sides)*Math.PI*2;
-          const v0 = [tx + Math.cos(a1)*baseRad, baseHeight, tz + Math.sin(a1)*baseRad];
-          const v1 = [tx + Math.cos(a2)*baseRad, baseHeight, tz + Math.sin(a2)*baseRad];
-          tris.push({ verts: [v0, v1, apex], color: shrubColor });
-        }
-        
-        // Add TWO middle layers for more dense appearance
-        const mid1Rad = shrubRad * 0.9;
-        const mid1H = th + shrubH * 0.4;
-        for(let s=0; s<sides; s++){
-          const a1 = (s/sides)*Math.PI*2;
-          const a2 = ((s+1)/sides)*Math.PI*2;
-          const v0 = [tx + Math.cos(a1)*baseRad, baseHeight, tz + Math.sin(a1)*baseRad];
-          const v1 = [tx + Math.cos(a2)*baseRad, baseHeight, tz + Math.sin(a2)*baseRad];
-          const v2 = [tx + Math.cos(a2)*mid1Rad, mid1H, tz + Math.sin(a2)*mid1Rad];
-          const v3 = [tx + Math.cos(a1)*mid1Rad, mid1H, tz + Math.sin(a1)*mid1Rad];
-          tris.push({ verts: [v0, v1, v2], color: shrubColor });
-          tris.push({ verts: [v0, v2, v3], color: shrubColor });
-        }
-        
-        const mid2Rad = shrubRad * 0.75;
-        const mid2H = th + shrubH * 0.7;
-        for(let s=0; s<sides; s++){
-          const a1 = (s/sides)*Math.PI*2;
-          const a2 = ((s+1)/sides)*Math.PI*2;
-          const v0 = [tx + Math.cos(a1)*mid1Rad, mid1H, tz + Math.sin(a1)*mid1Rad];
-          const v1 = [tx + Math.cos(a2)*mid1Rad, mid1H, tz + Math.sin(a2)*mid1Rad];
-          const v2 = [tx + Math.cos(a2)*mid2Rad, mid2H, tz + Math.sin(a2)*mid2Rad];
-          const v3 = [tx + Math.cos(a1)*mid2Rad, mid2H, tz + Math.sin(a1)*mid2Rad];
-          tris.push({ verts: [v0, v1, v2], color: shrubColor });
-          tris.push({ verts: [v0, v2, v3], color: shrubColor });
         }
       }
     }
@@ -1000,27 +929,6 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
   // Place player on valid terrain
   const initialGroundHeight = getTerrainHeightAt(0, 0);
   player.pos[1] = Math.max(initialGroundHeight + 0.5, 0.5);
-
-  function project(v){
-    // camera looks down -Z; we expect z negative in front
-    // we'll treat objects with z>0 (behind camera) as clipped
-    const aspect = canvas.width / canvas.height;
-    const f = 1 / Math.tan(player.fov / 2);
-    // simple projection to NDC
-    const z = v[2] || 0.0001;
-    return {
-      ndc: [ (v[0] * f) / (-z * aspect), (v[1] * f) / -z ],
-      z: z
-    };
-  }
-
-  function ndcToScreen(ndc){
-    const x = (ndc[0] * 0.5 + 0.5) * canvas.width;
-    const y = (1 - (ndc[1] * 0.5 + 0.5)) * canvas.height; // flip y
-    return [x,y];
-  }
-
-  // ...removed 2D drawTriangle, replaced by WebGL
 
   // render loop
   let last = performance.now();

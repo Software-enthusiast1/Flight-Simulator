@@ -228,74 +228,110 @@
   // ===== TRIANGLE EDITOR =====
   let editableTriangles = [];
 
-  function createCactusAt(tx, tz, th, rnd) {
+  // Helper: create a sphere of triangles
+  function createSphere(cx, cy, cz, radius, color, segments = 8) {
+    let triangles = [];
+    const rings = Math.floor(segments / 2);
+    
+    for (let lat = 0; lat < rings; lat++) {
+      const lat0 = (lat / rings) * Math.PI;
+      const lat1 = ((lat + 1) / rings) * Math.PI;
+      const sin0 = Math.sin(lat0);
+      const sin1 = Math.sin(lat1);
+      const cos0 = Math.cos(lat0);
+      const cos1 = Math.cos(lat1);
+      
+      for (let lng = 0; lng < segments; lng++) {
+        const lng0 = (lng / segments) * Math.PI * 2;
+        const lng1 = ((lng + 1) / segments) * Math.PI * 2;
+        const cosLng0 = Math.cos(lng0);
+        const sinLng0 = Math.sin(lng0);
+        const cosLng1 = Math.cos(lng1);
+        const sinLng1 = Math.sin(lng1);
+        
+        const v0 = [cx + radius * sin0 * cosLng0, cy + radius * cos0, cz + radius * sin0 * sinLng0];
+        const v1 = [cx + radius * sin0 * cosLng1, cy + radius * cos0, cz + radius * sin0 * sinLng1];
+        const v2 = [cx + radius * sin1 * cosLng0, cy + radius * cos1, cz + radius * sin1 * sinLng0];
+        const v3 = [cx + radius * sin1 * cosLng1, cy + radius * cos1, cz + radius * sin1 * sinLng1];
+        
+        triangles.push({verts: [v0, v1, v2], color: color});
+        triangles.push({verts: [v1, v3, v2], color: color});
+      }
+    }
+    return triangles;
+  }
+
+  function createTreeAt(tx, tz, th, rnd) {
     let tris = [];
-    // CACTUS: Tall, narrow, segmented, desert green
-    const cactusH = 1.2 + rnd()*0.6;
-    const cactusRad = 0.25 + rnd()*0.08;
-    const cactusColor = hslToRgb(0.32, 0.75, 0.35); // Warm desert green
-    const segments = 5 + Math.floor(rnd()*3);
     
-    // Main trunk (cylinder-like)
-    const sides = 6;
-    const segmentH = cactusH / segments;
+    // Check for berries early before consuming lots of random values
+    const hasBerries = rnd() < 0.3;
     
-    for(let seg = 0; seg < segments; seg++){
-      const h1 = th + seg * segmentH;
-      const h2 = th + (seg + 1) * segmentH;
-      const rad1 = cactusRad * (1 + Math.sin(seg * 0.8) * 0.2); // Slight waviness
-      const rad2 = cactusRad * (1 + Math.sin((seg + 1) * 0.8) * 0.2);
+    const bushColor = [
+      Math.floor(34 + rnd() * 30),
+      Math.floor(139 + rnd() * 30),
+      Math.floor(34 + rnd() * 30)
+    ];
+    const bushRadius = 0.4 + rnd() * 0.25;
+    const centerY = th + bushRadius * 0.7; // shorter center sphere
+    
+    // Large center sphere
+    tris.push(...createSphere(tx, centerY, tz, bushRadius, bushColor, 10));
+    
+    // 4-6 smaller spheres around the base, overlapping with main sphere
+    const numSmall = 4 + Math.floor(rnd() * 3);
+    for (let i = 0; i < numSmall; i++) {
+      const angle = (i / numSmall) * Math.PI * 2 + rnd() * 0.2;
       
-      for(let s = 0; s < sides; s++){
-        const a1 = (s / sides) * Math.PI * 2;
-        const a2 = ((s + 1) / sides) * Math.PI * 2;
-        const v0 = [tx + Math.cos(a1) * rad1, h1, tz + Math.sin(a1) * rad1];
-        const v1 = [tx + Math.cos(a2) * rad1, h1, tz + Math.sin(a2) * rad1];
-        const v2 = [tx + Math.cos(a2) * rad2, h2, tz + Math.sin(a2) * rad2];
-        const v3 = [tx + Math.cos(a1) * rad2, h2, tz + Math.sin(a1) * rad2];
-        tris.push({ verts: [v0, v1, v2], color: cactusColor });
-        tris.push({ verts: [v0, v2, v3], color: cactusColor });
-      }
+      const smallRadius = bushRadius * (0.10 + rnd() * 0.4);
+      // Position small sphere so it overlaps with the main sphere
+      // Place it at ground level, pushing it outward and making sure it overlaps
+      const offsetDist = bushRadius * 0.8;
+      
+      const ox = Math.cos(angle) * offsetDist;
+      const oz = Math.sin(angle) * offsetDist;
+      
+      tris.push(...createSphere(tx + ox, th + smallRadius, tz + oz, smallRadius, bushColor, 8));
     }
     
-    // Add small arms/spines sticking out (simple spikes)
-    const spineColor = hslToRgb(0.08, 0.8, 0.4); // Dark brownish for spines
-    for(let seg = 0; seg < segments; seg += 2){
-      const segH = th + (seg + 0.5) * segmentH;
-      const armCount = 3 + Math.floor(rnd() * 2);
+    // Add berries if enabled
+    if (hasBerries) {
+      const berryColor = [220, 20, 60]; // crimson red
+      const berryRadius = bushRadius * 0.12;
+      const numBerries = 6 + Math.floor(rnd() * 4);
       
-      for(let a = 0; a < armCount; a++){
-        const angle = (a / armCount) * Math.PI * 2;
-        const armLen = 0.25 + rnd() * 0.15;
-        const armX = tx + Math.cos(angle) * (cactusRad + armLen);
-        const armZ = tz + Math.sin(angle) * (cactusRad + armLen);
-        const armTipH = segH + rnd() * 0.2;
+      for (let i = 0; i < numBerries; i++) {
+        // Uniform distribution on sphere surface
+        const angle = rnd() * Math.PI * 2;
+        const u = rnd();
+        const vertAngle = Math.acos(2 * u - 1) - Math.PI / 2; // maps to [-π/2, π/2]
         
-        const baseX = tx + Math.cos(angle) * cactusRad;
-        const baseZ = tz + Math.sin(angle) * cactusRad;
+        // Position berries on/near the surface
+        const offsetDist = bushRadius * 0.9;
         
-        // Simple triangular spike
-        const v0 = [baseX, segH, baseZ];
-        const v1 = [armX, armTipH, armZ];
-        const v2 = [baseX + (rnd() - 0.5) * 0.1, segH + 0.1, baseZ + (rnd() - 0.5) * 0.1];
-        tris.push({ verts: [v0, v1, v2], color: spineColor });
+        const bx = tx + Math.cos(angle) * Math.cos(vertAngle) * offsetDist;
+        const by = centerY + Math.sin(vertAngle) * offsetDist;
+        const bz = tz + Math.sin(angle) * Math.cos(vertAngle) * offsetDist;
+        
+        tris.push(...createSphere(bx, by, bz, berryRadius, berryColor, 4));
       }
     }
+
     return tris;
   }
 
-  editableTriangles.push(...createCactusAt(0, 0, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(2, 0, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(4, 0, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(6, 0, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(0, 2, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(2, 2, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(4, 2, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(6, 2, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(0, 4, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(2, 4, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(4, 4, 0, mulberry32(12345)));
-  editableTriangles.push(...createCactusAt(6, 4, 0, mulberry32(12345)));
+  editableTriangles.push(...createTreeAt(0, 0, 0, mulberry32(12345)));
+  editableTriangles.push(...createTreeAt(8, 0, 0, mulberry32(12345+1)));
+  editableTriangles.push(...createTreeAt(16, 0, 0, mulberry32(12345+2)));
+  editableTriangles.push(...createTreeAt(24, 0, 0, mulberry32(12345+3)));
+  editableTriangles.push(...createTreeAt(0, 8, 0, mulberry32(12345+4)));
+  editableTriangles.push(...createTreeAt(8, 8, 0, mulberry32(12345+5)));
+  editableTriangles.push(...createTreeAt(16, 8, 0, mulberry32(12345+6)));
+  editableTriangles.push(...createTreeAt(24, 8, 0, mulberry32(12345+7)));
+  editableTriangles.push(...createTreeAt(0, 16, 0, mulberry32(12345+8)));
+  editableTriangles.push(...createTreeAt(8, 16, 0, mulberry32(12345+9)));
+  editableTriangles.push(...createTreeAt(16, 24, 0, mulberry32(12345+10)));
+  editableTriangles.push(...createTreeAt(24, 24, 0, mulberry32(12345+11)));
 
   function updateSceneFromTriangles() {
     sceneTriangles = editableTriangles.map(tri => ({
