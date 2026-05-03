@@ -226,112 +226,56 @@
   player.pos[1] = Math.max(initialGroundHeight + 0.5, 0.5);
 
   // ===== TRIANGLE EDITOR =====
-  let editableTriangles = [];
-
-  // Helper: create a sphere of triangles
-  function createSphere(cx, cy, cz, radius, color, segments = 8) {
-    let triangles = [];
-    const rings = Math.floor(segments / 2);
-    
-    for (let lat = 0; lat < rings; lat++) {
-      const lat0 = (lat / rings) * Math.PI;
-      const lat1 = ((lat + 1) / rings) * Math.PI;
-      const sin0 = Math.sin(lat0);
-      const sin1 = Math.sin(lat1);
-      const cos0 = Math.cos(lat0);
-      const cos1 = Math.cos(lat1);
-      
-      for (let lng = 0; lng < segments; lng++) {
-        const lng0 = (lng / segments) * Math.PI * 2;
-        const lng1 = ((lng + 1) / segments) * Math.PI * 2;
-        const cosLng0 = Math.cos(lng0);
-        const sinLng0 = Math.sin(lng0);
-        const cosLng1 = Math.cos(lng1);
-        const sinLng1 = Math.sin(lng1);
-        
-        const v0 = [cx + radius * sin0 * cosLng0, cy + radius * cos0, cz + radius * sin0 * sinLng0];
-        const v1 = [cx + radius * sin0 * cosLng1, cy + radius * cos0, cz + radius * sin0 * sinLng1];
-        const v2 = [cx + radius * sin1 * cosLng0, cy + radius * cos1, cz + radius * sin1 * sinLng0];
-        const v3 = [cx + radius * sin1 * cosLng1, cy + radius * cos1, cz + radius * sin1 * sinLng1];
-        
-        triangles.push({verts: [v0, v1, v2], color: color});
-        triangles.push({verts: [v1, v3, v2], color: color});
-      }
-    }
-    return triangles;
-  }
-
-  function createTreeAt(tx, tz, th, rnd) {
-    let tris = [];
-    
-    // Check for berries early before consuming lots of random values
-    const hasBerries = rnd() < 0.3;
-    
-    const bushColor = [
-      Math.floor(34 + rnd() * 30),
-      Math.floor(139 + rnd() * 30),
-      Math.floor(34 + rnd() * 30)
-    ];
-    const bushRadius = 0.4 + rnd() * 0.25;
-    const centerY = th + bushRadius * 0.7; // shorter center sphere
-    
-    // Large center sphere
-    tris.push(...createSphere(tx, centerY, tz, bushRadius, bushColor, 10));
-    
-    // 4-6 smaller spheres around the base, overlapping with main sphere
-    const numSmall = 4 + Math.floor(rnd() * 3);
-    for (let i = 0; i < numSmall; i++) {
-      const angle = (i / numSmall) * Math.PI * 2 + rnd() * 0.2;
-      
-      const smallRadius = bushRadius * (0.10 + rnd() * 0.4);
-      // Position small sphere so it overlaps with the main sphere
-      // Place it at ground level, pushing it outward and making sure it overlaps
-      const offsetDist = bushRadius * 0.8;
-      
-      const ox = Math.cos(angle) * offsetDist;
-      const oz = Math.sin(angle) * offsetDist;
-      
-      tris.push(...createSphere(tx + ox, th + smallRadius, tz + oz, smallRadius, bushColor, 8));
-    }
-    
-    // Add berries if enabled
-    if (hasBerries) {
-      const berryColor = [220, 20, 60]; // crimson red
-      const berryRadius = bushRadius * 0.12;
-      const numBerries = 6 + Math.floor(rnd() * 4);
-      
-      for (let i = 0; i < numBerries; i++) {
-        // Uniform distribution on sphere surface
-        const angle = rnd() * Math.PI * 2;
-        const u = rnd();
-        const vertAngle = Math.acos(2 * u - 1) - Math.PI / 2; // maps to [-π/2, π/2]
-        
-        // Position berries on/near the surface
-        const offsetDist = bushRadius * 0.9;
-        
-        const bx = tx + Math.cos(angle) * Math.cos(vertAngle) * offsetDist;
-        const by = centerY + Math.sin(vertAngle) * offsetDist;
-        const bz = tz + Math.sin(angle) * Math.cos(vertAngle) * offsetDist;
-        
-        tris.push(...createSphere(bx, by, bz, berryRadius, berryColor, 4));
-      }
-    }
-
-    return tris;
-  }
-
-  editableTriangles.push(...createTreeAt(0, 0, 0, mulberry32(12345)));
-  editableTriangles.push(...createTreeAt(8, 0, 0, mulberry32(12345+1)));
-  editableTriangles.push(...createTreeAt(16, 0, 0, mulberry32(12345+2)));
-  editableTriangles.push(...createTreeAt(24, 0, 0, mulberry32(12345+3)));
-  editableTriangles.push(...createTreeAt(0, 8, 0, mulberry32(12345+4)));
-  editableTriangles.push(...createTreeAt(8, 8, 0, mulberry32(12345+5)));
-  editableTriangles.push(...createTreeAt(16, 8, 0, mulberry32(12345+6)));
-  editableTriangles.push(...createTreeAt(24, 8, 0, mulberry32(12345+7)));
-  editableTriangles.push(...createTreeAt(0, 16, 0, mulberry32(12345+8)));
-  editableTriangles.push(...createTreeAt(8, 16, 0, mulberry32(12345+9)));
-  editableTriangles.push(...createTreeAt(16, 24, 0, mulberry32(12345+10)));
-  editableTriangles.push(...createTreeAt(24, 24, 0, mulberry32(12345+11)));
+  let editableTriangles = [
+    {verts: [[5, 1, -1], [5, -1, -0.05], [-1, -1, -1]], color: [255, 100, 100]},
+    {verts: [[-1, 1, -1], [5, 1, -1], [-1, -1, -1]], color: [255, 100, 100]},
+    {verts: [[5, 1, 1], [-1, -1, 1], [5, -1, 0.05]], color: [255, 100, 100]},
+    {verts: [[-1, 1, 1], [-1, -1, 1], [5, 1, 1]], color: [255, 100, 100]},
+    {verts: [[5, 1, 1], [-1, 1, -1], [-1, 1, 1]], color: [255, 100, 100]},
+    {verts: [[5, 1, 1], [5, 1, -1], [-1, 1, -1]], color: [255, 100, 100]},
+    {verts: [[-4, -1, 0], [-1, -1, -1], [-1, -1, 1]], color: [60, 200, 255]},
+    {verts: [[-1, 1, -1], [-4, -1, 0], [-1, 1, 1]], color: [60, 200, 255]},
+    {verts: [[-1, 1, 1], [-4, -1, 0], [-1, -1, 1]], color: [60, 200, 255]},
+    {verts: [[-1, 1, -1], [-1, -1, -1], [-4, -1, 0]], color: [60, 200, 255]},
+    {verts: [[7.5, 1, -0.05], [5, -1, -0.05], [5, 1, -1]], color: [255, 100, 100]},
+    {verts: [[7.5, 1, 0.05], [5, 1, 1], [5, -1, 0.05]], color: [255, 100, 100]},
+    {verts: [[7.5, 1, -0.05], [5, 1, -0.05], [8, 2.3, -0.05]], color: [255, 100, 100]},
+    {verts: [[7.5, 1, 0.05], [8, 2.3, 0.05], [5, 1, 0.05]], color: [255, 100, 100]},
+    {verts: [[5, 1, 0.05], [8, 2.3, 0.05], [5, 1, -0.05]], color: [255, 100, 100]},
+    {verts: [[5, 1, -0.05], [8, 2.3, 0.05], [8, 2.3, -0.05]], color: [255, 100, 100]},
+    {verts: [[8, 2.3, 0.05], [7.5, 1, 0.05], [7.5, 1, -0.05]], color: [255, 100, 100]},
+    {verts: [[8, 2.3, -0.05], [8, 2.3, 0.05], [7.5, 1, -0.05]], color: [255, 100, 100]},
+    {verts: [[-1, -1, 1], [-1, -1, -1], [5, -1, 0.05]], color: [255, 100, 100]},
+    {verts: [[-1, -1, -1], [5, -1, -0.05], [5, -1, 0.05]], color: [255, 100, 100]},
+    {verts: [[5, 1, 0], [7.5, 1, 0], [8, 1, 1.5]], color: [255, 100, 100]},
+    {verts: [[5, 1.1, 0], [8, 1.1, 1.5], [7.5, 1.1, 0]], color: [255, 100, 100]},
+    {verts: [[7.5, 1, 0], [5, 1, 0], [8, 1, -1.5]], color: [255, 100, 100]},
+    {verts: [[7.5, 1.1, 0], [8, 1.1, -1.5], [5, 1.1, 0]], color: [255, 100, 100]},
+    {verts: [[5, -1, -0.05], [7.5, 1, -0.05], [5, -1, 0.05]], color: [255, 100, 100]},
+    {verts: [[5, -1, 0.05], [7.5, 1, -0.05], [7.5, 1, 0.05]], color: [255, 100, 100]},
+    {verts: [[5, 1.1, 0], [5, 1, 0], [8, 1, 1.5]], color: [255, 100, 100]},
+    {verts: [[5, 1.1, 0], [8, 1, 1.5], [8, 1.1, 1.5]], color: [255, 100, 100]},
+    {verts: [[5, 1, 0], [5, 1.1, 0], [8, 1, -1.5]], color: [255, 100, 100]},
+    {verts: [[8, 1, -1.5], [5, 1.1, 0], [8, 1.1, -1.5]], color: [255, 100, 100]},
+    {verts: [[8, 1, 1.5], [7.5, 1, 0], [7.5, 1.1, 0]], color: [255, 100, 100]},
+    {verts: [[8, 1.1, 1.5], [8, 1, 1.5], [7.5, 1.1, 0]], color: [255, 100, 100]},
+    {verts: [[8, 1, -1.5], [8, 1.1, -1.5], [7.5, 1, 0]], color: [255, 100, 100]},
+    {verts: [[8, 1.1, -1.5], [7.5, 1.1, 0], [7.5, 1, 0]], color: [255, 100, 100]},
+    {verts: [[5, 1, -1], [5, 1, 1], [7.5, 1, 0.05]], color: [255, 100, 100]},
+    {verts: [[7.5, 1, 0.05], [7.5, 1, -0.05], [5, 1, -1]], color: [255, 100, 100]},
+    {verts: [[4, 0, 0], [0, 0.4, 0], [3.5, 0, 7]], color: [255, 100, 100]},
+    {verts: [[0, 0.2, 0], [4, -0.2, 0], [3.5, -0.2, 7]], color: [255, 100, 100]},
+    {verts: [[3.5, -0.2, 7], [0, 0.4, 0], [0, 0, 0]], color: [255, 100, 100]},
+    {verts: [[3.5, -0.2, 7], [3.5, 0, 7], [0, 0.4, 0]], color: [255, 100, 100]},
+    {verts: [[4, -0.2, 0], [4, 0, 0], [3.5, 0, 7]], color: [255, 100, 100]},
+    {verts: [[4, -0.2, 0], [3.5, 0, 7], [3.5, -0.2, 7]], color: [255, 100, 100]},
+    {verts: [[4, 0, 0], [3.5, 0, -7], [0, 0.4, 0]], color: [255, 100, 100]},
+    {verts: [[0, 0.2, 0], [3.5, -0.2, -7], [4, -0.2, 0]], color: [255, 100, 100]},
+    {verts: [[3.5, -0.2, -7], [0, 0, 0], [0, 0.4, 0]], color: [255, 100, 100]},
+    {verts: [[3.5, -0.2, -7], [0, 0.4, 0], [3.5, 0, -7]], color: [255, 100, 100]},
+    {verts: [[4, -0.2, 0], [3.5, 0, -7], [4, 0, 0]], color: [255, 100, 100]},
+    {verts: [[4, -0.2, 0], [3.5, -0.2, -7], [3.5, 0, -7]], color: [255, 100, 100]}
+  ];
 
   function updateSceneFromTriangles() {
     sceneTriangles = editableTriangles.map(tri => ({
