@@ -1,8 +1,7 @@
-// engine.js — All engine code lives in this file (No shit claude)
-// TODO — (IMPORTANT) Fix my goddam computer drivers and make it allocate more memory to the browser (and mabye add user to sudo wheel)
-// TODO — (FIX) Make water not render or calculate under land and vice versa
-// TODO — Organize into multiple files (this is almost unreadable)
+// LOD was not working on distant chunks so i will save this for another day
+// I don't know how to use git and branches (yet) so this exists in main for another day
 
+// engine.js
 import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm';
 
 (function(){
@@ -183,25 +182,6 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
   // Get camera pos (eyes) from player feet pos
   function getCameraPos(){
     return [player.pos[0], player.pos[1] + player.eyeHeight, player.pos[2]];
-  }
-
-  // Get water height at position (for ocean triangles)
-  let lastWaterTime = 0;
-  const waterHeightCache = new Map();
-  function getWaterHeightAt(x, z, time){
-    const cacheKey = `${Math.floor(x*10)},${Math.floor(z*10)}`;
-    const timeDiff = Math.abs(time - lastWaterTime);
-    if(timeDiff > 100) waterHeightCache.clear(); // Clear cache periodically
-    lastWaterTime = time;
-    
-    if(waterHeightCache.has(cacheKey)) return waterHeightCache.get(cacheKey);
-    
-    // Calculate water height at this position using same noise as ocean generation
-    const amplitude = 0.85;
-    const waveLength = 0.4;
-    const h = perlinNoise4D(x * waveLength, z * waveLength, time * 0.001, worldSeed) * amplitude;
-    waterHeightCache.set(cacheKey, h);
-    return h;
   }
 
   // Ray-cast down from pos to find ground height
@@ -452,7 +432,7 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
   // Chunk-based world generation for infinite terrain
   const CHUNK_SIZE = 16;
   const CHUNK_SPACING = 1.0;
-  const RENDER_DIST = 2; // in chunks
+  const RENDER_DIST = 4; // in chunks 
   const worldChunks = new Map(); // key: "x,z", value: {tris}
   const oceanChunks = new Map(); // key: "x,z", value: {tris}
   let worldSeed = 0;
@@ -464,7 +444,21 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
 
   function generateChunk(chunkX, chunkZ){
     const key = getChunkKey(chunkX, chunkZ);
-    if(worldChunks.has(key)) return worldChunks.get(key);
+    // Note: We don't cache here because LOD levels change as player moves
+    // If we cached, distant chunks would have the wrong LOD when player moves closer
+    // if(worldChunks.has(key)) return worldChunks.get(key);
+
+    // Calculate distance from player for LOD
+    const playerChunkX = Math.floor(player.pos[0] / (CHUNK_SIZE * CHUNK_SPACING));
+    const playerChunkZ = Math.floor(player.pos[2] / (CHUNK_SIZE * CHUNK_SPACING));
+    const chunkDistX = Math.abs(chunkX - playerChunkX);
+    const chunkDistZ = Math.abs(chunkZ - playerChunkZ);
+    const distFromPlayer = Math.max(chunkDistX, chunkDistZ);
+    
+    // Determine LOD level based on distance
+    let lodLevel = 1; // Full resolution (1 = no skipping)
+    if(distFromPlayer > 2) lodLevel = 2; // Half resolution (skip every 2nd vertex)
+    if(distFromPlayer > 4) lodLevel = 4; // Quarter resolution
 
     const seed = worldSeed ^ (chunkX * 73856093) ^ (chunkZ * 19349663);
     const rnd = mulberry32(seed|0);
@@ -552,6 +546,7 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     };
 
     // generate a padded terrain grid (one extra row/col on each side) to allow smoothing across chunk borders
+    // With LOD, keep edges at full resolution but reduce interior density
     const PAD = 1;
     const gridSize = CHUNK_SIZE + 1; // original grid points per chunk (0..CHUNK_SIZE)
     const padSize = gridSize + PAD*2; // padded grid size
@@ -561,8 +556,23 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
       for(let iz = 0; iz < padSize; iz++){
         const worldX = offsetX + (ix - PAD) * spacing;
         const worldZ = offsetZ + (iz - PAD) * spacing;
-        const h = heightAt(worldX, worldZ);
-        padded[ix * padSize + iz] = { x: worldX, z: worldZ, h };
+        
+        // Keep only the actual chunk boundary edges at full resolution
+        // Edges are at padded indices 1 and padSize-2 (the outermost interior vertices)
+        // Everything else can be reduced based on LOD
+        const isEdgeRow = (ix === 1 || ix === padSize - 2);
+        const isEdgeCol = (iz === 1 || iz === padSize - 2);
+        const isEdge = isEdgeRow || isEdgeCol;
+        
+        // Skip interior vertices based on LOD (but keep edges)
+        const shouldSkip = ((ix - 1) % lodLevel !== 0 || (iz - 1) % lodLevel !== 0) && !isEdge;
+        
+        if(shouldSkip) {
+          padded[ix * padSize + iz] = null; // Skip this vertex
+        } else {
+          const h = heightAt(worldX, worldZ);
+          padded[ix * padSize + iz] = { x: worldX, z: worldZ, h };
+        }
       }
     }
 
@@ -571,7 +581,11 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     for(let ix = 0; ix < gridSize; ix++){
       for(let iz = 0; iz < gridSize; iz++){
         const p = padded[(ix + PAD) * padSize + (iz + PAD)];
-        heights.push({ x: p.x, z: p.z, h: p.h, ix, iz });
+        if(p !== null) {
+          heights.push({ x: p.x, z: p.z, h: p.h, ix, iz });
+        } else {
+          heights.push(null); // Placeholder for skipped vertices
+        }
       }
     }
 
@@ -600,6 +614,11 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
         const i2 = idx + 1;
         const i3 = idx + (CHUNK_SIZE + 1);
         const i4 = idx + (CHUNK_SIZE + 1) + 1;
+
+        // Skip cells where any vertex is missing due to LOD
+        if(heights[i1] === null || heights[i2] === null || heights[i3] === null || heights[i4] === null) {
+          continue;
+        }
 
         const h00 = heights[i1].h;
         const h10 = heights[i2].h;
@@ -1011,27 +1030,11 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     const target = vec3.add(eye, [Math.sin(-player.yaw), Math.sin(-player.pitch), Math.cos(-player.yaw)]);
     const up = [0, 1, 0];
     const view = lookAtMatrix(eye, target, up);
+    drawTriangles(sceneTriangles, projection, view);
     
-    // Filter land triangles - only render if above water
-    const filteredLandTris = sceneTriangles.filter(tri => {
-      const avgX = (tri.verts[0][0] + tri.verts[1][0] + tri.verts[2][0]) / 3;
-      const avgZ = (tri.verts[0][2] + tri.verts[1][2] + tri.verts[2][2]) / 3;
-      const avgY = (tri.verts[0][1] + tri.verts[1][1] + tri.verts[2][1]) / 3;
-      const waterH = getWaterHeightAt(avgX, avgZ, now);
-      return avgY > waterH; // Only render if land is above water
-    });
-    drawTriangles(filteredLandTris, projection, view);
-    
-    // Draw animated ocean - only render if above land
+    // Draw animated ocean
     const oceanTriangles = rebuildOceanTriangles(now);
-    const filteredOceanTris = oceanTriangles.filter(tri => {
-      const avgX = (tri.verts[0][0] + tri.verts[1][0] + tri.verts[2][0]) / 3;
-      const avgZ = (tri.verts[0][2] + tri.verts[1][2] + tri.verts[2][2]) / 3;
-      const avgY = (tri.verts[0][1] + tri.verts[1][1] + tri.verts[2][1]) / 3;
-      const landH = getTerrainHeightAt(avgX, avgZ);
-      return avgY > landH; // Only render if water is above land
-    });
-    drawTriangles(filteredOceanTris, projection, view);
+    drawTriangles(oceanTriangles, projection, view);
 
     requestAnimationFrame(frame);
   }
