@@ -1,8 +1,4 @@
-// engine.js — All engine code lives in this file (No shit claude)
-// TODO — (IMPORTANT) Fix my goddam computer drivers and make it allocate more memory to the browser (and mabye add user to sudo wheel)
-// TODO — (FIX) Make water not render or calculate under land and vice versa
-// TODO — Organize into multiple files (this is almost unreadable)
-
+// engine.js — All engine code lives in this file
 import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm';
 
 (function(){
@@ -183,25 +179,6 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
   // Get camera pos (eyes) from player feet pos
   function getCameraPos(){
     return [player.pos[0], player.pos[1] + player.eyeHeight, player.pos[2]];
-  }
-
-  // Get water height at position (for ocean triangles)
-  let lastWaterTime = 0;
-  const waterHeightCache = new Map();
-  function getWaterHeightAt(x, z, time){
-    const cacheKey = `${Math.floor(x*10)},${Math.floor(z*10)}`;
-    const timeDiff = Math.abs(time - lastWaterTime);
-    if(timeDiff > 100) waterHeightCache.clear(); // Clear cache periodically
-    lastWaterTime = time;
-    
-    if(waterHeightCache.has(cacheKey)) return waterHeightCache.get(cacheKey);
-    
-    // Calculate water height at this position using same noise as ocean generation
-    const amplitude = 0.85;
-    const waveLength = 0.4;
-    const h = perlinNoise4D(x * waveLength, z * waveLength, time * 0.001, worldSeed) * amplitude;
-    waterHeightCache.set(cacheKey, h);
-    return h;
   }
 
   // Ray-cast down from pos to find ground height
@@ -452,7 +429,7 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
   // Chunk-based world generation for infinite terrain
   const CHUNK_SIZE = 16;
   const CHUNK_SPACING = 1.0;
-  const RENDER_DIST = 2; // in chunks
+  const RENDER_DIST = 3; // in chunks (radius)
   const worldChunks = new Map(); // key: "x,z", value: {tris}
   const oceanChunks = new Map(); // key: "x,z", value: {tris}
   let worldSeed = 0;
@@ -1011,27 +988,11 @@ import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/+esm'
     const target = vec3.add(eye, [Math.sin(-player.yaw), Math.sin(-player.pitch), Math.cos(-player.yaw)]);
     const up = [0, 1, 0];
     const view = lookAtMatrix(eye, target, up);
+    drawTriangles(sceneTriangles, projection, view);
     
-    // Filter land triangles - only render if above water
-    const filteredLandTris = sceneTriangles.filter(tri => {
-      const avgX = (tri.verts[0][0] + tri.verts[1][0] + tri.verts[2][0]) / 3;
-      const avgZ = (tri.verts[0][2] + tri.verts[1][2] + tri.verts[2][2]) / 3;
-      const avgY = (tri.verts[0][1] + tri.verts[1][1] + tri.verts[2][1]) / 3;
-      const waterH = getWaterHeightAt(avgX, avgZ, now);
-      return avgY > waterH; // Only render if land is above water
-    });
-    drawTriangles(filteredLandTris, projection, view);
-    
-    // Draw animated ocean - only render if above land
+    // Draw animated ocean
     const oceanTriangles = rebuildOceanTriangles(now);
-    const filteredOceanTris = oceanTriangles.filter(tri => {
-      const avgX = (tri.verts[0][0] + tri.verts[1][0] + tri.verts[2][0]) / 3;
-      const avgZ = (tri.verts[0][2] + tri.verts[1][2] + tri.verts[2][2]) / 3;
-      const avgY = (tri.verts[0][1] + tri.verts[1][1] + tri.verts[2][1]) / 3;
-      const landH = getTerrainHeightAt(avgX, avgZ);
-      return avgY > landH; // Only render if water is above land
-    });
-    drawTriangles(filteredOceanTris, projection, view);
+    drawTriangles(oceanTriangles, projection, view);
 
     requestAnimationFrame(frame);
   }
