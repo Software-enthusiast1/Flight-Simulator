@@ -1,3 +1,4 @@
+// Placeholder file for plane mesh
 // plane (needs to be traslated so the origin is somewere better, flipped along the x-axis, and make it able to rotate and move)
 {verts: [[5, 1, -1], [5, -1, -0.05], [-1, -1, -1]], color: [255, 100, 100]},
 {verts: [[-1, 1, -1], [5, 1, -1], [-1, -1, -1]], color: [255, 100, 100]},

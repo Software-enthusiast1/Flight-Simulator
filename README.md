@@ -4,7 +4,6 @@ A flight simulator using the 3D engine and terrain generator I built
 Alright so this is suuuuper terribly organized so i will reorganize this week or something
 
 # TODO
-- Reorganize
 - (FIX) Make water not render or calculate under land and vice versa
 - (FIX) better align foliage render distance with land render distance
 - Add LOD so farther away land doesnt steal so much computer powah
