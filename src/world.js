@@ -1,10 +1,10 @@
 // world.js — World and chunk management
 
 import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
+import { RENDER_DIST } from './options.js';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_SPACING = 1.0;
-export const RENDER_DIST = 2; // in chunks (radius)
 
 const worldChunks = new Map(); // key: "x,z", value: {tris}
 let worldSeed = 0;

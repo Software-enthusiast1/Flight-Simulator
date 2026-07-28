@@ -1,7 +1,8 @@
 // ocean.js — Ocean generation and animation
 
 import { perlinNoise4D, hslToRgb } from './noise.js';
-import { CHUNK_SIZE, CHUNK_SPACING, RENDER_DIST, terrainHeightAt } from './world.js';
+import { CHUNK_SIZE, CHUNK_SPACING, terrainHeightAt } from './world.js';
+import { RENDER_DIST } from './options.js';
 
 export function rebuildOceanTriangles(playerPos, worldSeed, time) {
   const oceanTriangles = [];
@@ -42,7 +43,7 @@ function generateOceanChunk(chunkX, chunkZ, worldSeed, time) {
       const centerZ = (z0 + z1) * 0.5;
       const terrainHeight = terrainHeightAt(centerX, centerZ, worldSeed);
 
-      if (terrainHeight > 1.0) continue;
+      if (terrainHeight > 2.0) continue;
 
       // Get wave height at each corner using 4D perlin noise
       const amplitude = 0.85; // Wave amplitude

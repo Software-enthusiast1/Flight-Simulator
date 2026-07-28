@@ -1,6 +1,7 @@
 // rendering.js — WebGL setup and drawing functions
 
 import { vec3 } from './math.js';
+import { resolutionScale } from './options.js';
 
 export function setupWebGL(canvas) {
   const gl = canvas.getContext('webgl');
@@ -140,8 +141,10 @@ export function drawTriangles(gl, program, triangles, projection, view) {
 }
 
 export function resizeCanvas(canvas) {
-  canvas.width = window.innerWidth * devicePixelRatio;
-  canvas.height = window.innerHeight * devicePixelRatio;
+  const dpr = window.devicePixelRatio || 1;
+  const scale = (typeof resolutionScale === 'number' && resolutionScale > 0) ? resolutionScale : 1;
+  canvas.width = Math.floor(window.innerWidth * dpr * scale);
+  canvas.height = Math.floor(window.innerHeight * dpr * scale);
   canvas.style.width = window.innerWidth + 'px';
   canvas.style.height = window.innerHeight + 'px';
 }
