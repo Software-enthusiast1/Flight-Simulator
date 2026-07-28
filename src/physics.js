@@ -1,156 +1,85 @@
-// physics.js — Player physics and collision detection
-
-import { vec3 } from './math.js';
+// physics.js — Simplified flight-style movement and camera state
 
 export const player = {
-  pos: [0, 2, 5], // world position (feet)
-  vel: [0, 0, 0], // velocity
-  yaw: 0, // rotation around Y
-  pitch: 0, // rotation around X
-  roll: 0, // rotation around Z (roll)
-  fov: 75 * Math.PI / 180,
-  radius: 0.3, // collision radius
-  height: 1.8, // player height
-  eyeHeight: 1.6, // eye position above feet
-  isGrounded: false,
-  jumpPower: 0, // accumulate jump force
+  pos: [0, 2, 5],
+  yaw: 0,
+  pitch: 0,
+  roll: 0,
+  throttle: 0,
+  speed: 6.0,
 };
 
-// Physics constants
-export const GRAVITY = -19.8;
-export const MOVE_SPEED = 6.0; // units/sec
-export const JUMP_FORCE = 6.5; // units/sec
-export const FRICTION = 0.99; // per frame
-export const GROUND_FRICTION = 0.95;
-export const ROT_SPEED = 3.0; // radians / second for arrow keys
+export const camera = {
+  pos: [0, 2, 5],
+  yaw: 0,
+  pitch: 0,
+  roll: 0,
+  fov: 75 * Math.PI / 180,
+};
 
-// Get camera pos (eyes) from player feet pos
+export const MOVE_SPEED = 6.0;
+export const ROT_SPEED = 3.0;
+export const THROTTLE_STEP = 1.0;
+export const THROTTLE_MAX = 10.0;
+export const THROTTLE_MIN = 0.0;
+
 export function getCameraPos() {
-  return [player.pos[0], player.pos[1] + player.eyeHeight, player.pos[2]];
+  return [camera.pos[0], camera.pos[1], camera.pos[2]];
 }
 
-// Ray-cast down from pos to find ground height
-export function getTerrainHeightAt(x, z, sceneTriangles) {
-  // Simple heightfield lookup using scene triangles with barycentric interpolation
-  let maxY = -100;
-
-  for (const tri of sceneTriangles) {
-    const v0 = tri.verts[0], v1 = tri.verts[1], v2 = tri.verts[2];
-
-    // bounding box check (early exit)
-    const minX = Math.min(v0[0], v1[0], v2[0]);
-    const maxX = Math.max(v0[0], v1[0], v2[0]);
-    const minZ = Math.min(v0[2], v1[2], v2[2]);
-    const maxZ = Math.max(v0[2], v1[2], v2[2]);
-
-    if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
-      // Barycentric coordinates for point in triangle
-      const denom = ((v1[2] - v2[2]) * (v0[0] - v2[0]) + (v2[0] - v1[0]) * (v0[2] - v2[2]));
-      if (Math.abs(denom) < 0.0001) continue; // degenerate triangle
-
-      const a = ((v1[2] - v2[2]) * (x - v2[0]) + (v2[0] - v1[0]) * (z - v2[2])) / denom;
-      const b = ((v2[2] - v0[2]) * (x - v2[0]) + (v0[0] - v2[0]) * (z - v2[2])) / denom;
-      const c = 1 - a - b;
-
-      // if point is inside triangle
-      if (a >= -0.01 && b >= -0.01 && c >= -0.01) {
-        const h = a * v0[1] + b * v1[1] + c * v2[1];
-        maxY = Math.max(maxY, h);
-      }
-    }
-  }
-  return maxY;
+function syncCameraFromPlayer() {
+  camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
+  camera.yaw = player.yaw;
+  camera.pitch = player.pitch;
+  camera.roll = player.roll;
 }
 
 export function resetCamera() {
-  player.pos = [7, 0, 0];
-  player.vel = [0, 0, 0];
+  player.pos = [0, 2, 5];
   player.yaw = 0;
   player.pitch = 0;
   player.roll = 0;
-  player.isGrounded = false;
+  player.throttle = 0;
+  syncCameraFromPlayer();
 }
 
-export function updatePlayer(dt, keys, sceneTriangles, CHUNK_SIZE, CHUNK_SPACING, lastPlayerChunkX, lastPlayerChunkZ, rebuildScene) {
-  let moveSpeed = MOVE_SPEED;
-  // Increase speed when shift is held
-  if (keys['shift']) moveSpeed *= 6.0;
-
-  // rotation from arrow keys
-  if (keys['arrowleft']) player.yaw -= ROT_SPEED * dt;
-  if (keys['arrowright']) player.yaw += ROT_SPEED * dt;
-  if (keys['arrowup']) player.pitch = Math.max(-Math.PI / 2 + 0.01, player.pitch - ROT_SPEED * dt);
-  if (keys['arrowdown']) player.pitch = Math.min(Math.PI / 2 - 0.01, player.pitch + ROT_SPEED * dt);
-  // roll with Q/E
-  // if (keys['q']) player.roll -= ROT_SPEED * dt;
-  // if (keys['e']) player.roll += ROT_SPEED * dt;
-
-  // movement direction based on yaw rotation (W/S forward/backward, A/D strafe left/right)
-  const yaw = player.yaw;
-  const forward = [Math.sin(0 - yaw), 0, Math.cos(0 - yaw)]; // forward direction in world space
-  const right = [Math.sin((0 - yaw) - Math.PI / 2), 0, Math.cos((0 - yaw) - Math.PI / 2)]; // right direction
-
-  let moveDir = [0, 0, 0];
-
-  if (keys['w']) moveDir = vec3.add(moveDir, forward);
-  if (keys['s']) moveDir = vec3.sub(moveDir, forward);
-  if (keys['a']) moveDir = vec3.sub(moveDir, right);
-  if (keys['d']) moveDir = vec3.add(moveDir, right);
-
-  // normalize and apply move speed
-  if (moveDir[0] || moveDir[1] || moveDir[2]) {
-    moveDir = vec3.norm(moveDir);
-    moveDir = vec3.mul(moveDir, moveSpeed);
+export function updatePlayer(dt, keys) {
+  if (keys['w']) {
+    player.throttle = Math.min(THROTTLE_MAX, player.throttle + THROTTLE_STEP * dt);
+  } else if (keys['s']) {
+    player.throttle = Math.max(THROTTLE_MIN, player.throttle - THROTTLE_STEP * dt);
   }
 
-  // apply movement to velocity (horizontal only)
-  player.vel[0] = moveDir[0];
-  player.vel[2] = moveDir[2];
+  if (keys['a']) player.yaw -= ROT_SPEED * dt;
+  if (keys['d']) player.yaw += ROT_SPEED * dt;
+  if (keys['arrowleft']) player.roll += ROT_SPEED * dt;
+  if (keys['arrowright']) player.roll -= ROT_SPEED * dt;
+  if (keys['arrowup']) player.pitch += ROT_SPEED * dt;
+  if (keys['arrowdown']) player.pitch -= ROT_SPEED * dt;
 
-  // apply gravity
-  player.vel[1] += GRAVITY * dt;
-  player.vel[1] = Math.max(player.vel[1], -50); // terminal velocity
+  const yawRad = player.yaw;
+  const pitchRad = player.pitch;
+  const rollRad = player.roll;
 
-  // apply jump
-  if (player.jumpPower > 0) {
-    player.vel[1] += player.jumpPower;
-    player.jumpPower = 0;
-    player.isGrounded = false;
-  }
+  const cosPitch = Math.cos(pitchRad);
+  const sinPitch = Math.sin(pitchRad);
+  const sinYaw = Math.sin(-yawRad);
+  const cosYaw = Math.cos(-yawRad);
 
-  // apply friction when grounded
-  if (player.isGrounded) {
-    player.vel[0] *= GROUND_FRICTION;
-    player.vel[2] *= GROUND_FRICTION;
-  } else {
-    player.vel[0] *= FRICTION;
-    player.vel[2] *= FRICTION;
-  }
+  const forward = [
+    cosPitch * sinYaw,
+    -sinPitch,
+    cosPitch * cosYaw,
+  ];
 
-  // update position
-  const newPos = vec3.add(player.pos, vec3.mul(player.vel, dt));
+  const moveAmount = player.throttle * player.speed * dt;
 
-  // collision and grounding
-  const groundHeight = getTerrainHeightAt(newPos[0], newPos[2], sceneTriangles);
-  const feetHeight = newPos[1];
+  player.pos[0] += forward[0] * moveAmount;
+  player.pos[1] += forward[1] * moveAmount;
+  player.pos[2] += forward[2] * moveAmount;
 
-  if (feetHeight <= groundHeight) {
-    // on ground
-    newPos[1] = groundHeight;
-    player.vel[1] = 0;
-    player.isGrounded = true;
-  } else {
-    player.isGrounded = false;
-  }
-
-  player.pos = newPos;
-
-  // Check if we need to regenerate chunks
-  const playerChunkX = Math.floor(player.pos[0] / (CHUNK_SIZE * CHUNK_SPACING));
-  const playerChunkZ = Math.floor(player.pos[2] / (CHUNK_SIZE * CHUNK_SPACING));
-  if (Math.abs(playerChunkX - lastPlayerChunkX) > 0 || Math.abs(playerChunkZ - lastPlayerChunkZ) > 0) {
-    rebuildScene(playerChunkX, playerChunkZ);
-  }
-
-  return { lastPlayerChunkX: playerChunkX, lastPlayerChunkZ: playerChunkZ };
+  camera.yaw = yawRad;
+  camera.pitch = pitchRad;
+  camera.roll = rollRad;
+  camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
 }
