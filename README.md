@@ -6,7 +6,7 @@ Alright so this is suuuuper terribly organized so i will reorganize this week or
 # TODO
 - (FIX) Make water not render or calculate under land and vice versa
 - (FIX) better align foliage render distance with land render distance
-- Add LOD so farther away land doesnt steal so much computer powah
+- Add LOD so farther away land doesnt steal so much computer powah (if still lagging)
 - Add motion blur so low framerate (ie on chromebook or raspberry pi 5 (my only two computers)) doesnt look as bad
 - Make a it a flight sim with plane phisics and such
 

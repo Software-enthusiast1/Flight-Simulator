@@ -82,8 +82,8 @@ export function updatePlayer(dt, keys, sceneTriangles, CHUNK_SIZE, CHUNK_SPACING
   if (keys['arrowup']) player.pitch = Math.max(-Math.PI / 2 + 0.01, player.pitch - ROT_SPEED * dt);
   if (keys['arrowdown']) player.pitch = Math.min(Math.PI / 2 - 0.01, player.pitch + ROT_SPEED * dt);
   // roll with Q/E
-  if (keys['q']) player.roll -= ROT_SPEED * dt;
-  if (keys['e']) player.roll += ROT_SPEED * dt;
+  // if (keys['q']) player.roll -= ROT_SPEED * dt;
+  // if (keys['e']) player.roll += ROT_SPEED * dt;
 
   // movement direction based on yaw rotation (W/S forward/backward, A/D strafe left/right)
   const yaw = player.yaw;

@@ -4,13 +4,33 @@ import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_SPACING = 1.0;
-export const RENDER_DIST = 3; // in chunks (radius)
+export const RENDER_DIST = 2; // in chunks (radius)
 
 const worldChunks = new Map(); // key: "x,z", value: {tris}
 let worldSeed = 0;
 
 export function getChunkKey(chunkX, chunkZ) {
   return `${chunkX},${chunkZ}`;
+}
+
+export function terrainHeightAt(x, z, seed = worldSeed) {
+  let h = (perlinNoise(x * 0.7, z * 0.7, seed - 3) * 7.0) + 7;
+  h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
+  h += (perlinNoise(x * 5.5, z * 5.5, seed - 1) * 0.1) + 0.1;
+
+  const biomeWater = perlinNoise(x * 0.11, z * 0.11, seed - 999);
+
+  const transitionStart = 0;
+  const transitionEnd = 0.5;
+  const t = (biomeWater - transitionStart) / (transitionEnd - transitionStart);
+  const oceanBlend = Math.max(0, Math.min(1, t));
+  const smoothBlend = oceanBlend * oceanBlend * (3 - 2 * oceanBlend);
+
+  const deepTerrain = perlinNoise(x * 0.5, z * 0.5, seed - 50) * 8.0 - 30.0;
+
+  h = h * (1 - smoothBlend) + deepTerrain * smoothBlend;
+
+  return h;
 }
 
 function generateChunk(chunkX, chunkZ) {
@@ -49,32 +69,7 @@ function generateChunk(chunkX, chunkZ) {
   };
 
   // Use perlin-like noise for better terrain with peaks
-  const heightAt = (x, z) => {
-    // Start with multiple octaves of Perlin noise
-    let h = (perlinNoise(x * 0.7, z * 0.7, worldSeed - 3) * 7.0) + 7;
-    h += (perlinNoise(x * 2.5, z * 2.5, worldSeed - 2) * 0.4) + 0.4;
-    h += (perlinNoise(x * 5.5, z * 5.5, worldSeed - 1) * 0.1) + 0.1;
-
-    const biomeWater = getBiomeWater(x, z);
-
-    // Wider, smoother transition zone using smoothstep-like blend
-    // Transition happens between biomeWater -0.3 (land) and 0.3 (ocean)
-    const transitionStart = 0;
-    const transitionEnd = 0.5;
-    const t = (biomeWater - transitionStart) / (transitionEnd - transitionStart);
-    const oceanBlend = Math.max(0, Math.min(1, t));
-
-    // Use smoothstep to make the curve even smoother
-    const smoothBlend = oceanBlend * oceanBlend * (3 - 2 * oceanBlend);
-
-    // Generate deep ocean terrain
-    const deepTerrain = perlinNoise(x * 0.5, z * 0.5, worldSeed - 50) * 8.0 - 30.0;
-
-    // Blend between land terrain and deep ocean terrain
-    h = h * (1 - smoothBlend) + deepTerrain * smoothBlend;
-
-    return h;
-  };
+  const heightAt = (x, z) => terrainHeightAt(x, z, worldSeed);
 
   // Function to check if a point is at a peak (for coloring)
   const isAtPeak = (x, z) => {
@@ -156,6 +151,11 @@ function generateChunk(chunkX, chunkZ) {
       const h10 = heights[i2].h;
       const h01 = heights[i3].h;
       const h11 = heights[i4].h;
+
+      if (h00 < -1 && h10 < -1 && h01 < -1 && h11 < -1) {
+        // Skip deep ocean quads
+        continue;
+      }
 
       const v00 = [heights[i1].x, h00, heights[i1].z];
       const v10 = [heights[i2].x, h10, heights[i2].z];
