@@ -1,7 +1,7 @@
 // world.js — World and chunk management
 
 import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
-import { RENDER_DIST, chunkResolution } from './options.js';
+import { RENDER_DIST, chunkResolution, foliage  } from './options.js';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_RESOLUTION = Math.max(1, chunkResolution);
@@ -193,7 +193,9 @@ function generateChunk(chunkX, chunkZ) {
   }
 
   // Import vegetation generation from vegetation.js
-  importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome);
+  if (foliage) {
+    importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome);
+  }
 
   const chunk = { tris };
   worldChunks.set(key, chunk);
