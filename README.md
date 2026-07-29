@@ -9,6 +9,7 @@ A flight simulator using the 3D engine and terrain generator I built
 - it needs more render distance, figure out ways to optimise
     - Add level of detail
     - cull tris behind screen(?)
+    - Ocean tris steal SOOO much processing, fix?
 
 
 - Add a large valley system and mountain system onto the map
@@ -34,6 +35,8 @@ A flight simulator using the 3D engine and terrain generator I built
     - ridge turbulance
     - stall
 - Visual effects
+    - fog (to make chunks not just jump in)
+    - clouds
     - biome effects like snow
     - Plane go boom? (crash boom based off of speed)
     - visual wake in water and sand

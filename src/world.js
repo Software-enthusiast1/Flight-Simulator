@@ -1,7 +1,7 @@
 // world.js — World and chunk management
 
 import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
-import { RENDER_DIST, chunkResolution, foliage  } from './options.js';
+import { RENDER_DIST, chunkResolution, foliage, water, color, lowAmp } from './options.js';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_RESOLUTION = Math.max(1, chunkResolution);
@@ -17,20 +17,24 @@ export function getChunkKey(chunkX, chunkZ) {
 export function terrainHeightAt(x, z, seed = worldSeed) {
   let h = (perlinNoise(x * 0.2, z * 0.2, seed - 4) * 20.0) + 20;
   h += (perlinNoise(x * 0.7, z * 0.7, seed - 3) * 7.0) + 7;
-  h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
-  h += (perlinNoise(x * 5.5, z * 5.5, seed - 1) * 0.1) + 0.1;
+  if (lowAmp) {
+    h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
+    h += (perlinNoise(x * 5.5, z * 5.5, seed - 1) * 0.1) + 0.1;
+  }
 
-  const biomeWater = perlinNoise(x * 0.02, z * 0.02, seed - 999);
+  if (water) {
+    const biomeWater = perlinNoise(x * 0.02, z * 0.02, seed - 999);
 
-  const transitionStart = 0;
-  const transitionEnd = 0.5;
-  const t = (biomeWater - transitionStart) / (transitionEnd - transitionStart);
-  const oceanBlend = Math.max(0, Math.min(1, t));
-  const smoothBlend = oceanBlend * oceanBlend * (3 - 2 * oceanBlend);
+    const transitionStart = 0;
+    const transitionEnd = 0.5;
+    const t = (biomeWater - transitionStart) / (transitionEnd - transitionStart);
+    const oceanBlend = Math.max(0, Math.min(1, t));
+    const smoothBlend = oceanBlend * oceanBlend * (3 - 2 * oceanBlend);
 
-  const deepTerrain = perlinNoise(x * 0.5, z * 0.5, seed - 50) * 8.0 - 30.0;
+    const deepTerrain = perlinNoise(x * 0.5, z * 0.5, seed - 50) * 8.0 - 30.0;
 
-  h = h * (1 - smoothBlend) + deepTerrain * smoothBlend;
+    h = h * (1 - smoothBlend) + deepTerrain * smoothBlend;
+  }
 
   return h;
 }
@@ -163,8 +167,13 @@ function generateChunk(chunkX, chunkZ) {
       const avgX = (heights[i1].x + heights[i2].x + heights[i3].x + heights[i4].x) / 4;
       const avgZ = (heights[i1].z + heights[i2].z + heights[i3].z + heights[i4].z) / 4;
       const avgH = (h00 + h10 + h01 + h11) / 4;
-      const col = colorByBiome(avgH, avgX, avgZ);
-
+      let col;
+      if (color) {
+        col = colorByBiome(avgH, avgX, avgZ);
+      } else {
+        col = hslToRgb(0, 0, 1);
+      }
+      
       const heightVar = Math.max(
         Math.abs(h00 - h10), Math.abs(h10 - h11),
         Math.abs(h11 - h01), Math.abs(h01 - h00),
