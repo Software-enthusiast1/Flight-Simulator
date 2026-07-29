@@ -14,11 +14,13 @@ export function getChunkKey(chunkX, chunkZ) {
 }
 
 export function terrainHeightAt(x, z, seed = worldSeed) {
-  let h = (perlinNoise(x * 0.7, z * 0.7, seed - 3) * 7.0) + 7;
+  //let h = (perlinNoise(x * 0.02, z * 0.02, seed - 5) * 80.0) + 80;
+  let h = (perlinNoise(x * 0.2, z * 0.2, seed - 4) * 20.0) + 20;
+  h += (perlinNoise(x * 0.7, z * 0.7, seed - 3) * 7.0) + 7;
   h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
   h += (perlinNoise(x * 5.5, z * 5.5, seed - 1) * 0.1) + 0.1;
 
-  const biomeWater = perlinNoise(x * 0.11, z * 0.11, seed - 999);
+  const biomeWater = perlinNoise(x * 0.02, z * 0.02, seed - 999);
 
   const transitionStart = 0;
   const transitionEnd = 0.5;
@@ -51,12 +53,6 @@ function generateChunk(chunkX, chunkZ) {
     const biomeTemp = perlinNoise(x * 0.1, z * 0.1, worldSeed + 999);
     return biomeTemp;
   };
-
-  const getBiomeWater = (x, z) => {
-    // Biome probability to be an ocean instead
-    const biomeWater = perlinNoise(x * 0.11, z * 0.11, worldSeed - 999);
-    return biomeWater;
-  }
 
   // Get discrete biome from continuous biome value
   const getBiome = (x, z) => {
