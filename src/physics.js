@@ -1,7 +1,7 @@
 // physics.js — Simplified flight-style movement and camera state
 
 export const player = {
-  pos: [0, 2, 5],
+  pos: [0, 40, 5],
   yaw: 0,
   pitch: 0,
   roll: 0,
@@ -10,7 +10,7 @@ export const player = {
 };
 
 export const camera = {
-  pos: [0, 2, 5],
+  pos: [0, 40, 5],
   yaw: 0,
   pitch: 0,
   roll: 0,
@@ -35,7 +35,7 @@ function syncCameraFromPlayer() {
 }
 
 export function resetCamera() {
-  player.pos = [0, 2, 5];
+  player.pos = [0, 40, 5];
   player.yaw = 0;
   player.pitch = 0;
   player.roll = 0;

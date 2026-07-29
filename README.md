@@ -2,16 +2,47 @@
 A flight simulator using the 3D engine and terrain generator I built
 
 # TODO
-- I changed terrain again so readjust coloring and also do it with plants
+- world.js line 7 what is that chunk res
+
+- Foliage be looking weird
+
+- it needs more render distance, figure out ways to optimise
+    - Add level of detail
+    - cull tris behind screen(?)
+
+
+- Add a large valley system and mountain system onto the map
+- add arches and bridges and overhangs and cliffs
+
 - Instead of 50/50 water land make it more like 30/70
+
 - Water is boring, add islands
 - Land is boring, and lakes and ponds
+
+- readjust coloring of terrain
+- make colors more natural (maybe gradients or textures)
+
 - Weird rotaion bug idk
+- also forward vector breaks when you do a 360
+
 - (FIX) better align foliage render distance with land render distance
-- Add LOD so farther away land doesnt steal so much computer powah (if still lagging)
 - Add motion blur so low framerate (ie on chromebook or raspberry pi 5 (my only two computers)) doesnt look as bad
 - screen tearing (I don't think it is a vsnyc issue because it happens at really low fps)
+
 - Make a it a flight sim with plane phisics and such
+    - ground effect
+    - ridge turbulance
+    - stall
+- Visual effects
+    - biome effects like snow
+    - Plane go boom? (crash boom based off of speed)
+    - visual wake in water and sand
+    - Wind in foliage
+    - folage moves when you fly by fast
+    - high speed effects (more fov, wind particles, shake)
+    - birb?
+    - stunt points?
+- Audio effects
 
 # File Organization
 

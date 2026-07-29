@@ -1,9 +1,10 @@
 // world.js — World and chunk management
 
 import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
-import { RENDER_DIST } from './options.js';
+import { RENDER_DIST, chunkResolution } from './options.js';
 
 export const CHUNK_SIZE = 16;
+export const CHUNK_RESOLUTION = Math.max(1, chunkResolution);
 export const CHUNK_SPACING = 1.0;
 
 const worldChunks = new Map(); // key: "x,z", value: {tris}
@@ -14,7 +15,6 @@ export function getChunkKey(chunkX, chunkZ) {
 }
 
 export function terrainHeightAt(x, z, seed = worldSeed) {
-  //let h = (perlinNoise(x * 0.02, z * 0.02, seed - 5) * 80.0) + 80;
   let h = (perlinNoise(x * 0.2, z * 0.2, seed - 4) * 20.0) + 20;
   h += (perlinNoise(x * 0.7, z * 0.7, seed - 3) * 7.0) + 7;
   h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
@@ -95,14 +95,16 @@ function generateChunk(chunkX, chunkZ) {
 
   // generate a padded terrain grid (one extra row/col on each side) to allow smoothing across chunk borders
   const PAD = 1;
-  const gridSize = CHUNK_SIZE + 1; // original grid points per chunk (0..CHUNK_SIZE)
+  const resolution = CHUNK_RESOLUTION;
+  const gridSize = resolution + 1;
   const padSize = gridSize + PAD * 2; // padded grid size
   const padded = new Array(padSize * padSize);
+  const sampleStep = CHUNK_SIZE / resolution;
 
   for (let ix = 0; ix < padSize; ix++) {
     for (let iz = 0; iz < padSize; iz++) {
-      const worldX = offsetX + (ix - PAD) * spacing;
-      const worldZ = offsetZ + (iz - PAD) * spacing;
+      const worldX = offsetX + (ix - PAD) * sampleStep * spacing;
+      const worldZ = offsetZ + (iz - PAD) * sampleStep * spacing;
       const h = heightAt(worldX, worldZ);
       padded[ix * padSize + iz] = { x: worldX, z: worldZ, h };
     }
@@ -135,13 +137,13 @@ function generateChunk(chunkX, chunkZ) {
     return hslToRgb(0, 0, 0.5);
   };
 
-  for (let ix = 0; ix < CHUNK_SIZE; ix++) {
-    for (let iz = 0; iz < CHUNK_SIZE; iz++) {
-      const idx = ix * (CHUNK_SIZE + 1) + iz;
+  for (let ix = 0; ix < resolution; ix++) {
+    for (let iz = 0; iz < resolution; iz++) {
+      const idx = ix * (resolution + 1) + iz;
       const i1 = idx;
       const i2 = idx + 1;
-      const i3 = idx + (CHUNK_SIZE + 1);
-      const i4 = idx + (CHUNK_SIZE + 1) + 1;
+      const i3 = idx + (resolution + 1);
+      const i4 = idx + (resolution + 1) + 1;
 
       const h00 = heights[i1].h;
       const h10 = heights[i2].h;

@@ -1,7 +1,7 @@
 // ocean.js — Ocean generation and animation
 
 import { perlinNoise4D, hslToRgb } from './noise.js';
-import { CHUNK_SIZE, CHUNK_SPACING, terrainHeightAt } from './world.js';
+import { CHUNK_SIZE, CHUNK_RESOLUTION, CHUNK_SPACING, terrainHeightAt } from './world.js';
 import { RENDER_DIST } from './options.js';
 
 export function rebuildOceanTriangles(playerPos, worldSeed, time) {
@@ -30,14 +30,16 @@ function generateOceanChunk(chunkX, chunkZ, worldSeed, time) {
   const offsetZ = chunkZ * CHUNK_SIZE * spacing;
 
   const oceanColor = hslToRgb(0.55, 1, 0.60);
+  const resolution = CHUNK_RESOLUTION;
+  const sampleStep = CHUNK_SIZE / resolution;
 
   // Generate ocean surface mesh with animated waves
-  for (let ix = 0; ix < CHUNK_SIZE; ix++) {
-    for (let iz = 0; iz < CHUNK_SIZE; iz++) {
-      const x0 = offsetX + ix * spacing;
-      const z0 = offsetZ + iz * spacing;
-      const x1 = offsetX + (ix + 1) * spacing;
-      const z1 = offsetZ + (iz + 1) * spacing;
+  for (let ix = 0; ix < resolution; ix++) {
+    for (let iz = 0; iz < resolution; iz++) {
+      const x0 = offsetX + ix * sampleStep * spacing;
+      const z0 = offsetZ + iz * sampleStep * spacing;
+      const x1 = offsetX + (ix + 1) * sampleStep * spacing;
+      const z1 = offsetZ + (iz + 1) * sampleStep * spacing;
 
       const centerX = (x0 + x1) * 0.5;
       const centerZ = (z0 + z1) * 0.5;
