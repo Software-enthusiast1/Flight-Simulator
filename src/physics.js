@@ -28,19 +28,11 @@ export function getCameraPos() {
 }
 
 function syncCameraFromPlayer() {
+  // Will change based off of 1st or 3rd person view in the future
   camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
   camera.yaw = player.yaw;
   camera.pitch = player.pitch;
   camera.roll = player.roll;
-}
-
-export function resetCamera() {
-  player.pos = [0, 40, 5];
-  player.yaw = 0;
-  player.pitch = 0;
-  player.roll = 0;
-  player.throttle = 0;
-  syncCameraFromPlayer();
 }
 
 export function updatePlayer(dt, keys) {

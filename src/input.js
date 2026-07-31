@@ -2,12 +2,9 @@
 
 export const keys = {};
 
-export function setupInput(onReset) {
+export function setupInput() {
   window.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true;
-    if (e.key === 'r' || e.key === 'R') {
-      onReset();
-    }
   });
 
   window.addEventListener('keyup', e => {

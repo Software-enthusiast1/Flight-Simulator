@@ -3,7 +3,7 @@
 import { vec3, perspectiveMatrix, lookAtMatrix } from './src/math.js';
 import { setupWebGL, createShaderProgram, drawTriangles, resizeCanvas } from './src/rendering.js';
 import { keys, setupInput } from './src/input.js';
-import { player, camera, getCameraPos, resetCamera, updatePlayer } from './src/physics.js';
+import { player, camera, getCameraPos, updatePlayer } from './src/physics.js';
 import { generateWorld, rebuildSceneTriangles, CHUNK_SIZE } from './src/world.js';
 import { rebuildOceanTriangles } from './src/ocean.js';
 
@@ -26,9 +26,7 @@ let lastPlayerChunkX = 0;
 let lastPlayerChunkZ = 0;
 
 // Setup input handlers
-setupInput(() => {
-  resetCamera();
-});
+setupInput();
 
 // Handle window resize
 window.addEventListener('resize', () => {

@@ -56,15 +56,6 @@
   const RENDER_DISTANCE = 500; // units
   const CHUNK_REGEN_DIST = 30; // regen chunks when player is this far from center
 
-  function resetCamera(){ 
-    player.pos = [0, 2, 5]; 
-    player.vel = [0, 0, 0];
-    player.yaw = 0; 
-    player.pitch = 0;
-    player.roll = 0;
-    player.isGrounded = false;
-  }
-
   // Get camera pos (eyes) from player feet pos
   function getCameraPos(){
     return [player.pos[0], player.pos[1] + player.eyeHeight, player.pos[2]];
@@ -79,7 +70,6 @@
   const keys = {};
   window.addEventListener('keydown', e=>{ 
     keys[e.key.toLowerCase()] = true; 
-    if(e.key==='r' || e.key==='R'){ resetCamera(); } 
     if(e.key===' ' && player.isGrounded){ player.jumpPower = JUMP_FORCE; }
     // No world regeneration in noTerrain mode
   });
