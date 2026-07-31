@@ -4,7 +4,7 @@ import { vec3, perspectiveMatrix, lookAtMatrix } from './src/math.js';
 import { setupWebGL, createShaderProgram, drawTriangles, resizeCanvas } from './src/rendering.js';
 import { keys, setupInput } from './src/input.js';
 import { player, camera, getCameraPos, resetCamera, updatePlayer } from './src/physics.js';
-import { generateWorld, rebuildSceneTriangles, CHUNK_SIZE, CHUNK_SPACING } from './src/world.js';
+import { generateWorld, rebuildSceneTriangles, CHUNK_SIZE } from './src/world.js';
 import { rebuildOceanTriangles } from './src/ocean.js';
 
 // Initialize
@@ -39,8 +39,8 @@ window.addEventListener('resize', () => {
 // Initial world setup
 worldSeed = Date.now() % 2147483647;
 generateWorld(worldSeed);
-const initialChunkX = Math.floor(player.pos[0] / (CHUNK_SIZE * CHUNK_SPACING));
-const initialChunkZ = Math.floor(player.pos[2] / (CHUNK_SIZE * CHUNK_SPACING));
+const initialChunkX = Math.floor(player.pos[0] / (CHUNK_SIZE));
+const initialChunkZ = Math.floor(player.pos[2] / (CHUNK_SIZE));
 sceneTriangles = rebuildSceneTriangles(initialChunkX, initialChunkZ);
 lastPlayerChunkX = initialChunkX;
 lastPlayerChunkZ = initialChunkZ;
@@ -54,8 +54,8 @@ function frame(now) {
   // Update movement and camera state
   updatePlayer(dt, keys);
 
-  const playerChunkX = Math.floor(player.pos[0] / (CHUNK_SIZE * CHUNK_SPACING));
-  const playerChunkZ = Math.floor(player.pos[2] / (CHUNK_SIZE * CHUNK_SPACING));
+  const playerChunkX = Math.floor(player.pos[0] / (CHUNK_SIZE));
+  const playerChunkZ = Math.floor(player.pos[2] / (CHUNK_SIZE));
   if (playerChunkX !== lastPlayerChunkX || playerChunkZ !== lastPlayerChunkZ) {
     sceneTriangles = rebuildSceneTriangles(playerChunkX, playerChunkZ);
     lastPlayerChunkX = playerChunkX;

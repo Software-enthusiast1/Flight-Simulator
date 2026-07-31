@@ -1,15 +1,15 @@
 // ocean.js — Ocean generation and animation
 
 import { perlinNoise4D, hslToRgb } from './noise.js';
-import { CHUNK_SIZE, CHUNK_RESOLUTION, CHUNK_SPACING, terrainHeightAt } from './world.js';
+import { CHUNK_SIZE, CHUNK_RESOLUTION, terrainHeightAt } from './world.js';
 import { RENDER_DIST } from './options.js';
 
 export function rebuildOceanTriangles(playerPos, worldSeed, time) {
   const oceanTriangles = [];
 
   // Get player chunk position
-  const playerChunkX = Math.floor(playerPos[0] / (CHUNK_SIZE * CHUNK_SPACING));
-  const playerChunkZ = Math.floor(playerPos[2] / (CHUNK_SIZE * CHUNK_SPACING));
+  const playerChunkX = Math.floor(playerPos[0] / (CHUNK_SIZE));
+  const playerChunkZ = Math.floor(playerPos[2] / (CHUNK_SIZE));
 
   // Generate ocean chunks around player
   for (let cx = playerChunkX - RENDER_DIST; cx <= playerChunkX + RENDER_DIST; cx++) {
@@ -24,10 +24,9 @@ export function rebuildOceanTriangles(playerPos, worldSeed, time) {
 
 function generateOceanChunk(chunkX, chunkZ, worldSeed, time) {
   const tris = [];
-  const spacing = CHUNK_SPACING;
 
-  const offsetX = chunkX * CHUNK_SIZE * spacing;
-  const offsetZ = chunkZ * CHUNK_SIZE * spacing;
+  const offsetX = chunkX * CHUNK_SIZE;
+  const offsetZ = chunkZ * CHUNK_SIZE;
 
   const oceanColor = hslToRgb(0.55, 1, 0.60);
   const resolution = CHUNK_RESOLUTION;
@@ -36,10 +35,10 @@ function generateOceanChunk(chunkX, chunkZ, worldSeed, time) {
   // Generate ocean surface mesh with animated waves
   for (let ix = 0; ix < resolution; ix++) {
     for (let iz = 0; iz < resolution; iz++) {
-      const x0 = offsetX + ix * sampleStep * spacing;
-      const z0 = offsetZ + iz * sampleStep * spacing;
-      const x1 = offsetX + (ix + 1) * sampleStep * spacing;
-      const z1 = offsetZ + (iz + 1) * sampleStep * spacing;
+      const x0 = offsetX + ix * sampleStep;
+      const z0 = offsetZ + iz * sampleStep;
+      const x1 = offsetX + (ix + 1) * sampleStep;
+      const z1 = offsetZ + (iz + 1) * sampleStep;
 
       const centerX = (x0 + x1) * 0.5;
       const centerZ = (z0 + z1) * 0.5;

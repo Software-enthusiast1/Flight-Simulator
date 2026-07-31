@@ -5,7 +5,6 @@ import { RENDER_DIST, chunkResolution, foliage, water, color, lowAmp } from './o
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_RESOLUTION = Math.max(1, chunkResolution);
-export const CHUNK_SPACING = 1.0;
 
 const worldChunks = new Map(); // key: "x,z", value: {tris}
 let worldSeed = 0;
@@ -46,11 +45,10 @@ function generateChunk(chunkX, chunkZ) {
   const seed = worldSeed ^ (chunkX * 73856093) ^ (chunkZ * 19349663);
   const rnd = mulberry32(seed | 0);
   const tris = [];
-  const spacing = CHUNK_SPACING;
 
   // World position of chunk corner
-  const offsetX = chunkX * CHUNK_SIZE * spacing;
-  const offsetZ = chunkZ * CHUNK_SIZE * spacing;
+  const offsetX = chunkX * CHUNK_SIZE;
+  const offsetZ = chunkZ * CHUNK_SIZE;
 
   const getBiomeTemp = (x, z) => {
     //Outputs a random biome temp
@@ -107,8 +105,8 @@ function generateChunk(chunkX, chunkZ) {
 
   for (let ix = 0; ix < padSize; ix++) {
     for (let iz = 0; iz < padSize; iz++) {
-      const worldX = offsetX + (ix - PAD) * sampleStep * spacing;
-      const worldZ = offsetZ + (iz - PAD) * sampleStep * spacing;
+      const worldX = offsetX + (ix - PAD) * sampleStep;
+      const worldZ = offsetZ + (iz - PAD) * sampleStep;
       const h = heightAt(worldX, worldZ);
       padded[ix * padSize + iz] = { x: worldX, z: worldZ, h };
     }
@@ -215,8 +213,8 @@ function generateChunk(chunkX, chunkZ) {
 function importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome) {
   // add procedural trees to chunk
   let baseTrees = -10 + Math.floor(rnd() * 8);
-  const biomeSampleX = offsetX + CHUNK_SIZE * 0.5 * CHUNK_SPACING;
-  const biomeSampleZ = offsetZ + CHUNK_SIZE * 0.5 * CHUNK_SPACING;
+  const biomeSampleX = offsetX + CHUNK_SIZE * 0.5;
+  const biomeSampleZ = offsetZ + CHUNK_SIZE * 0.5;
   const sampleBiome = getBiome(biomeSampleX, biomeSampleZ);
   if (sampleBiome === 'desert') baseTrees = Math.max(0, Math.floor(baseTrees * 0.35));
   if (sampleBiome === 'plains' || sampleBiome === 'snowy_plains') baseTrees = Math.max(1, Math.floor(baseTrees * 1.2));
@@ -226,8 +224,8 @@ function importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome) {
   const positions = [];
   const outliers = Math.max(1, Math.floor(treeCount * 0.3));
   for (let o = 0; o < outliers; o++) {
-    const tx = offsetX + (rnd() - 0.5) * CHUNK_SIZE * CHUNK_SPACING * 0.95;
-    const tz = offsetZ + (rnd() - 0.5) * CHUNK_SIZE * CHUNK_SPACING * 0.95;
+    const tx = offsetX + (rnd() - 0.5) * CHUNK_SIZE * 0.95;
+    const tz = offsetZ + (rnd() - 0.5) * CHUNK_SIZE * 0.95;
     positions.push({ x: tx, z: tz, cluster: false });
   }
 

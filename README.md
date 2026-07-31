@@ -2,7 +2,10 @@
 A flight simulator using the 3D engine and terrain generator I built
 
 # TODO
-- world.js line 7 what is that chunk res
+Quick side note low amp will be for the rockyness or smoothness of terrain
+
+- Add a large valley system and mountain system onto the map
+- add arches and bridges and overhangs and cliffs
 
 - Foliage be looking weird
 
@@ -10,10 +13,6 @@ A flight simulator using the 3D engine and terrain generator I built
     - Add level of detail
     - cull tris behind screen(?)
     - Ocean tris steal SOOO much processing, fix?
-
-
-- Add a large valley system and mountain system onto the map
-- add arches and bridges and overhangs and cliffs
 
 - Instead of 50/50 water land make it more like 30/70
 
