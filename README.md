@@ -4,6 +4,10 @@ A flight simulator using the 3D engine and terrain generator I built
 # TODO
 Quick side note low amp will be for the rockyness or smoothness of terrain
 
+- switch visual roll and yaw on only plane rotation
+- Weird rotaion bug idk
+- also forward vector breaks when you do a 360
+
 - Add a large valley system and mountain system onto the map
 - add arches and bridges and overhangs and cliffs
 
@@ -21,9 +25,6 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
 
 - readjust coloring of terrain
 - make colors more natural (maybe gradients or textures)
-
-- Weird rotaion bug idk
-- also forward vector breaks when you do a 360
 
 - (FIX) better align foliage render distance with land render distance
 - Add motion blur so low framerate (ie on chromebook or raspberry pi 5 (my only two computers)) doesnt look as bad
@@ -73,6 +74,8 @@ Flight-Simulator/
 - Git, github
 - Vim text editor
 - repo organizeation
+- Terrain generation (smooth noise functions)
+- Game design
 
 # Next Steps
 1. **Performance Optimization**: Profile with DevTools, optimize slow sections

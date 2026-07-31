@@ -6,6 +6,7 @@ import { keys, setupInput } from './src/input.js';
 import { player, camera, getCameraPos, updatePlayer } from './src/physics.js';
 import { generateWorld, rebuildSceneTriangles, CHUNK_SIZE } from './src/world.js';
 import { rebuildOceanTriangles } from './src/ocean.js';
+import { drawPlane } from './src/plane.js';
 
 // Initialize
 (function() {
@@ -77,6 +78,9 @@ function frame(now) {
   // Draw animated ocean
   const oceanTriangles = rebuildOceanTriangles(player.pos, worldSeed, now);
   drawTriangles(gl, program, oceanTriangles, projection, view);
+
+  const planeTriangles = drawPlane(player.pos[0], player.pos[1], player.pos[2], player.yaw, player.pitch, player.roll);
+  drawTriangles(gl, program, planeTriangles, projection, view);
 
   requestAnimationFrame(frame);
 }

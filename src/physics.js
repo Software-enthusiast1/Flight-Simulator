@@ -27,14 +27,6 @@ export function getCameraPos() {
   return [camera.pos[0], camera.pos[1], camera.pos[2]];
 }
 
-function syncCameraFromPlayer() {
-  // Will change based off of 1st or 3rd person view in the future
-  camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
-  camera.yaw = player.yaw;
-  camera.pitch = player.pitch;
-  camera.roll = player.roll;
-}
-
 export function updatePlayer(dt, keys) {
   if (keys['w']) {
     player.throttle = Math.min(THROTTLE_MAX, player.throttle + THROTTLE_STEP * dt);
@@ -70,8 +62,9 @@ export function updatePlayer(dt, keys) {
   player.pos[1] += forward[1] * moveAmount;
   player.pos[2] += forward[2] * moveAmount;
 
-  camera.yaw = yawRad;
-  camera.pitch = pitchRad;
-  camera.roll = rollRad;
-  camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
+  // Change this later for both 1st and 3rd person camera modes
+  // camera.yaw = yawRad;
+  // camera.pitch = pitchRad;
+  // camera.roll = rollRad;
+  // camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
 }
