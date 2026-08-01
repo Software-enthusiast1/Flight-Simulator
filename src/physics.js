@@ -4,9 +4,9 @@ import { thirdPersonCamera, cameraSmoothingFactor } from './options.js';
 
 export const player = {
   pos: [0, 40, 5],
-  yaw: 0,
-  pitch: 0,
-  roll: 0,
+  forward: [0, 0, 1],
+  up: [0, 1, 0],
+  right: [1, 0, 0],
   throttle: 0,
   speed: 6.0,
 };
@@ -22,6 +22,38 @@ export const camera = {
   targetRoll: 0,
   fov: 75 * Math.PI / 180,
 };
+
+export function rotateVector(v, axis, theta) {
+  // 1. Normalize the axis vector to get unit vector k
+  const length = Math.sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+  if (length === 0) {
+      throw new Error("Axis vector cannot be a zero vector.");
+  }
+  const k = [axis[0] / length, axis[1] / length, axis[2] / length];
+
+  const cosTheta = Math.cos(theta);
+  const sinTheta = Math.sin(theta);
+
+  // 2. Compute dot product (k . v)
+  const dotProd = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+
+  // 3. Compute cross product (k x v)
+  const crossProd = [
+      k[1] * v[2] - k[2] * v[1],
+      k[2] * v[0] - k[0] * v[2],
+      k[0] * v[1] - k[1] * v[0]
+  ];
+
+  // 4. Combine terms using Rodrigues' formula
+  // v_rot = v * cos(theta) + (k x v) * sin(theta) + k * (k . v) * (1 - cos(theta))
+  const s = dotProd * (1 - cosTheta);
+
+  return [
+      v[0] * cosTheta + crossProd[0] * sinTheta + k[0] * s,
+      v[1] * cosTheta + crossProd[1] * sinTheta + k[1] * s,
+      v[2] * cosTheta + crossProd[2] * sinTheta + k[2] * s
+  ];
+}
 
 export const MOVE_SPEED = 6.0;
 export const ROT_SPEED = 3.0;
@@ -39,66 +71,65 @@ export function updatePlayer(dt, keys) {
   } else if (keys['s']) {
     player.throttle = Math.max(THROTTLE_MIN, player.throttle - THROTTLE_STEP * dt);
   }
+  if (keys['a']) {
+    player.forward = rotateVector(player.forward, player.up, ROT_SPEED * dt);
+    player.right = rotateVector(player.right, player.up, ROT_SPEED * dt);
+  } else if (keys['d']) {
+    player.forward = rotateVector(player.forward, player.up, -ROT_SPEED * dt);
+    player.right = rotateVector(player.right, player.up, -ROT_SPEED * dt);
+  }
+  if (keys['arrowright']) {
+    player.forward = rotateVector(player.forward, player.forward, ROT_SPEED * dt);
+    player.up = rotateVector(player.up, player.forward, ROT_SPEED * dt);
+  } else if (keys['arrowleft']) {
+    player.forward = rotateVector(player.forward, player.forward, -ROT_SPEED * dt);
+    player.up = rotateVector(player.up, player.forward, -ROT_SPEED * dt);
+  }
+  if (keys['arrowdown']) {
+    player.forward = rotateVector(player.forward, player.right, ROT_SPEED * dt);
+    player.up = rotateVector(player.up, player.right, ROT_SPEED * dt);
+  } else if (keys['arrowup']) {
+    player.forward = rotateVector(player.forward, player.right, -ROT_SPEED * dt);
+    player.up = rotateVector(player.up, player.right, -ROT_SPEED * dt);
+  }
 
-  if (keys['a']) player.yaw -= ROT_SPEED * dt;
-  if (keys['d']) player.yaw += ROT_SPEED * dt;
-  if (keys['arrowleft']) player.roll += ROT_SPEED * dt;
-  if (keys['arrowright']) player.roll -= ROT_SPEED * dt;
-  if (keys['arrowup']) player.pitch += ROT_SPEED * dt;
-  if (keys['arrowdown']) player.pitch -= ROT_SPEED * dt;
-
-  const yawRad = player.yaw;
-  const pitchRad = player.pitch;
-  const rollRad = player.roll;
-
-  const cosPitch = Math.cos(pitchRad);
-  const sinPitch = Math.sin(pitchRad);
-  const sinYaw = Math.sin(-yawRad);
-  const cosYaw = Math.cos(-yawRad);
-
-  const forward = [
-    cosPitch * sinYaw,
-    -sinPitch,
-    cosPitch * cosYaw,
+  // Update right vector to maintain orthogonality
+  player.right = [
+    player.forward[1] * player.up[2] - player.forward[2] * player.up[1],
+    player.forward[2] * player.up[0] - player.forward[0] * player.up[2],
+    player.forward[0] * player.up[1] - player.forward[1] * player.up[0]
   ];
+
+  // Normalize vectors to prevent drift
+  const normalize = (v) => {
+    const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    return [v[0]/len, v[1]/len, v[2]/len];
+  };
+
+  player.forward = normalize(player.forward);
+  player.up = normalize(player.up);
+  player.right = normalize(player.right);
 
   const moveAmount = player.throttle * player.speed * dt;
 
-  player.pos[0] += forward[0] * moveAmount;
-  player.pos[1] += forward[1] * moveAmount;
-  player.pos[2] += forward[2] * moveAmount;
+  player.pos[0] += player.forward[0] * moveAmount;
+  player.pos[1] += player.forward[1] * moveAmount;
+  player.pos[2] += player.forward[2] * moveAmount;
 
   // Change this later for both 1st and 3rd person camera modes
   if (thirdPersonCamera) {
-    const cameraDistance = 10.0;
-    camera.targetYaw = yawRad;
-    camera.targetPitch = pitchRad;
-    camera.targetRoll = 0;
-    camera.targetPos[0] = player.pos[0] - forward[0] * cameraDistance;
-    camera.targetPos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane not working because it is not true up vector
-    camera.targetPos[2] = player.pos[2] - forward[2] * cameraDistance;
+    camera.targetPos[0] = player.pos[0] - player.forward[0] * 10 + player.up[0] * 3;
+    camera.targetPos[1] = player.pos[1] - player.forward[1] * 10 + player.up[1] * 3;
+    camera.targetPos[2] = player.pos[2] - player.forward[2] * 10 + player.up[2] * 3;
   } else {
-    camera.targetYaw = yawRad;
-    camera.targetPitch = pitchRad;
-    camera.targetRoll = rollRad;
-    camera.targetPos = [player.pos[0], player.pos[1], player.pos[2]];
+    camera.targetPos[0] = player.pos[0];
+    camera.targetPos[1] = player.pos[1];
+    camera.targetPos[2] = player.pos[2];
   }
-  // Step the camera position towards the target position for smooth movement
   camera.pos[0] += (camera.targetPos[0] - camera.pos[0]) * cameraSmoothingFactor;
   camera.pos[1] += (camera.targetPos[1] - camera.pos[1]) * cameraSmoothingFactor;
   camera.pos[2] += (camera.targetPos[2] - camera.pos[2]) * cameraSmoothingFactor;
-
-  // Step the camera rotation towards the target rotation for smooth movement
-  camera.yaw += (camera.targetYaw - camera.yaw) * cameraSmoothingFactor;
-  camera.pitch += (camera.targetPitch - camera.pitch) * cameraSmoothingFactor;
-  camera.roll += (camera.targetRoll - camera.roll) * cameraSmoothingFactor;
-
-  // This doesnt work because it does not account that the position changes in rotation, but it looks cinematic so maybe a cinematic replay mode?
-  // const cameraDistance = 10.0;
-  // camera.targetPos[0] = player.pos[0] - forward[0] * cameraDistance;
-  // camera.targetPos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane
-  // camera.targetPos[2] = player.pos[2] - forward[2] * cameraDistance;
-  // camera.targetYaw = yawRad;
-  // camera.targetPitch = pitchRad;
-  // camera.targetRoll = rollRad;
+  // camera.pitch += (camera.targetPitch - camera.pitch) * cameraSmoothingFactor;
+  // camera.yaw += (camera.targetYaw - camera.yaw) * cameraSmoothingFactor;
+  // camera.roll += (camera.targetRoll - camera.roll) * cameraSmoothingFactor;
 }

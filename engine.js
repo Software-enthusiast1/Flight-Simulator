@@ -101,7 +101,7 @@ function frame(now) {
   const oceanTriangles = rebuildOceanTriangles(player.pos, worldSeed, now);
   drawTriangles(gl, program, oceanTriangles, projection, view);
 
-  const planeTriangles = drawPlane(player.pos[0], player.pos[1], player.pos[2], -player.yaw, player.pitch, -player.roll);
+  const planeTriangles = drawPlane(player.pos[0], player.pos[1], player.pos[2], player.forward, player.up, player.right);
   drawTriangles(gl, program, planeTriangles, projection, view);
 
   requestAnimationFrame(frame);
