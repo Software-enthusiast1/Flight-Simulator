@@ -1,6 +1,6 @@
 // physics.js — Simplified flight-style movement and camera state
 
-import { thirdPersonCamera } from './options.js';
+import { thirdPersonCamera, cameraSmoothingFactor } from './options.js';
 
 export const player = {
   pos: [0, 40, 5],
@@ -16,6 +16,10 @@ export const camera = {
   yaw: 0,
   pitch: 0,
   roll: 0,
+  targetPos: [0, 40, 5],
+  targetYaw: 0,
+  targetPitch: 0,
+  targetRoll: 0,
   fov: 75 * Math.PI / 180,
 };
 
@@ -67,24 +71,34 @@ export function updatePlayer(dt, keys) {
   // Change this later for both 1st and 3rd person camera modes
   if (thirdPersonCamera) {
     const cameraDistance = 10.0;
-    camera.yaw = yawRad;
-    camera.pitch = pitchRad;
-    camera.roll = 0;
-    camera.pos[0] = player.pos[0] - forward[0] * cameraDistance;
-    camera.pos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane not working because it is not true up vector
-    camera.pos[2] = player.pos[2] - forward[2] * cameraDistance;
+    camera.targetYaw = yawRad;
+    camera.targetPitch = pitchRad;
+    camera.targetRoll = 0;
+    camera.targetPos[0] = player.pos[0] - forward[0] * cameraDistance;
+    camera.targetPos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane not working because it is not true up vector
+    camera.targetPos[2] = player.pos[2] - forward[2] * cameraDistance;
   } else {
-    camera.yaw = yawRad;
-    camera.pitch = pitchRad;
-    camera.roll = rollRad;
-    camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
+    camera.targetYaw = yawRad;
+    camera.targetPitch = pitchRad;
+    camera.targetRoll = rollRad;
+    camera.targetPos = [player.pos[0], player.pos[1], player.pos[2]];
   }
+  // Step the camera position towards the target position for smooth movement
+  camera.pos[0] += (camera.targetPos[0] - camera.pos[0]) * cameraSmoothingFactor;
+  camera.pos[1] += (camera.targetPos[1] - camera.pos[1]) * cameraSmoothingFactor;
+  camera.pos[2] += (camera.targetPos[2] - camera.pos[2]) * cameraSmoothingFactor;
+
+  // Step the camera rotation towards the target rotation for smooth movement
+  camera.yaw += (camera.targetYaw - camera.yaw) * cameraSmoothingFactor;
+  camera.pitch += (camera.targetPitch - camera.pitch) * cameraSmoothingFactor;
+  camera.roll += (camera.targetRoll - camera.roll) * cameraSmoothingFactor;
+
   // This doesnt work because it does not account that the position changes in rotation, but it looks cinematic so maybe a cinematic replay mode?
   // const cameraDistance = 10.0;
-  // camera.pos[0] = player.pos[0] - forward[0] * cameraDistance;
-  // camera.pos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane
-  // camera.pos[2] = player.pos[2] - forward[2] * cameraDistance;
-  // camera.yaw = yawRad;
-  // camera.pitch = pitchRad;
-  // camera.roll = rollRad;
+  // camera.targetPos[0] = player.pos[0] - forward[0] * cameraDistance;
+  // camera.targetPos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane
+  // camera.targetPos[2] = player.pos[2] - forward[2] * cameraDistance;
+  // camera.targetYaw = yawRad;
+  // camera.targetPitch = pitchRad;
+  // camera.targetRoll = rollRad;
 }
