@@ -4,10 +4,6 @@ A flight simulator using the 3D engine and terrain generator I built
 # TODO
 Quick side note low amp will be for the rockyness or smoothness of terrain
 
-- switch visual roll and yaw on only plane rotation
-- Weird rotaion bug idk
-- also forward vector breaks when you do a 360
-
 - Add a large valley system and mountain system onto the map
 - add arches and bridges and overhangs and cliffs
 
@@ -46,6 +42,8 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
     - birb?
     - stunt points?
 - Audio effects
+
+- Cinematic camera replay? look at physics.js last few lines
 
 # File Organization
 

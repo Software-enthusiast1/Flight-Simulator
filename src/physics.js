@@ -1,5 +1,7 @@
 // physics.js — Simplified flight-style movement and camera state
 
+import { thirdPersonCamera } from './options.js';
+
 export const player = {
   pos: [0, 40, 5],
   yaw: 0,
@@ -63,8 +65,26 @@ export function updatePlayer(dt, keys) {
   player.pos[2] += forward[2] * moveAmount;
 
   // Change this later for both 1st and 3rd person camera modes
-  camera.yaw = yawRad;
-  camera.pitch = pitchRad;
-  camera.roll = rollRad;
-  camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
+  if (thirdPersonCamera) {
+    const cameraDistance = 10.0;
+    camera.yaw = yawRad;
+    camera.pitch = pitchRad;
+    camera.roll = 0;
+    camera.pos[0] = player.pos[0] - forward[0] * cameraDistance;
+    camera.pos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane not working because it is not true up vector
+    camera.pos[2] = player.pos[2] - forward[2] * cameraDistance;
+  } else {
+    camera.yaw = yawRad;
+    camera.pitch = pitchRad;
+    camera.roll = rollRad;
+    camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
+  }
+  // This doesnt work because it does not account that the position changes in rotation, but it looks cinematic so maybe a cinematic replay mode?
+  // const cameraDistance = 10.0;
+  // camera.pos[0] = player.pos[0] - forward[0] * cameraDistance;
+  // camera.pos[1] = player.pos[1] - forward[1] * cameraDistance + 2.0; // Slightly above the plane
+  // camera.pos[2] = player.pos[2] - forward[2] * cameraDistance;
+  // camera.yaw = yawRad;
+  // camera.pitch = pitchRad;
+  // camera.roll = rollRad;
 }
