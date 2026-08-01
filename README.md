@@ -43,8 +43,6 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
     - stunt points?
 - Audio effects
 
-- Cinematic camera replay? look at physics.js last few lines
-
 # File Organization
 
 ```
