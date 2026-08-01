@@ -63,8 +63,8 @@ export function updatePlayer(dt, keys) {
   player.pos[2] += forward[2] * moveAmount;
 
   // Change this later for both 1st and 3rd person camera modes
-  // camera.yaw = yawRad;
-  // camera.pitch = pitchRad;
-  // camera.roll = rollRad;
-  // camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
+  camera.yaw = yawRad;
+  camera.pitch = pitchRad;
+  camera.roll = rollRad;
+  camera.pos = [player.pos[0], player.pos[1], player.pos[2]];
 }
