@@ -1,5 +1,7 @@
 // plane.js - plane rotation and movement handled here
 
+import { playerOptions } from './options.js';
+
 const translate = ([x, y, z], [tx, ty, tz]) => {
     return [x + tx, y + ty, z + tz];
 }
@@ -31,7 +33,6 @@ export const drawPlane = (x, y, z, forward, up, right) => {
         {verts: [[-1, 1, 1], [1, 1, 1], [0, -1, 4]], color: [60, 200, 255]},
         {verts: [[1, 1, 1], [1, -1, 1], [0, -1, 4]], color: [60, 200, 255]},
         {verts: [[-1, 1, 1], [0, -1, 4], [-1, -1, 1]], color: [60, 200, 255]},
-
         {verts: [[-1, 1, -5], [-1, -1, 1], [-0.05, -1, -5]], color: [255, 100, 100]}, // Sides (reversed normals so only visable in 1st person)
         {verts: [[-1, 1, 1], [-1, -1, 1], [-1, 1, -5]], color: [255, 100, 100]},
         {verts: [[1, 1, -5], [0.05, -1, -5], [1, -1, 1]], color: [255, 100, 100]},
@@ -68,18 +69,20 @@ export const drawPlane = (x, y, z, forward, up, right) => {
         {verts: [[-1, 1, -5], [1, 1, -5], [0.05, 1, -7.5]], color: [255, 100, 100]},
         {verts: [[0.05, 1, -7.5], [-0.05, 1, -7.5], [-1, 1, -5]], color: [255, 100, 100]},
         {verts: [[0, 0, -4], [0, 0.4, 0], [7, 0, -3.5]], color: [255, 100, 100]},
-        {verts: [[0, 0.2, 0], [0, -0.2, -4], [7, -0.2, -3.5]], color: [255, 100, 100]},
         {verts: [[7, -0.2, -3.5], [0, 0.4, 0], [0, 0, 0]], color: [255, 100, 100]},
         {verts: [[7, -0.2, -3.5], [7, 0, -3.5], [0, 0.4, 0]], color: [255, 100, 100]},
         {verts: [[0, -0.2, -4], [0, 0, -4], [7, 0, -3.5]], color: [255, 100, 100]},
         {verts: [[0, -0.2, -4], [7, 0, -3.5], [7, -0.2, -3.5]], color: [255, 100, 100]},
         {verts: [[0, 0, -4], [-7, 0, -3.5], [0, 0.4, 0]], color: [255, 100, 100]},
-        {verts: [[0, 0.2, 0], [-7, -0.2, -3.5], [0, -0.2, -4]], color: [255, 100, 100]},
         {verts: [[-7, -0.2, -3.5], [0, 0, 0], [0, 0.4, 0]], color: [255, 100, 100]},
         {verts: [[-7, -0.2, -3.5], [0, 0.4, 0], [-7, 0, -3.5]], color: [255, 100, 100]},
         {verts: [[0, -0.2, -4], [-7, 0, -3.5], [0, 0, -4]], color: [255, 100, 100]},
         {verts: [[0, -0.2, -4], [-7, -0.2, -3.5], [-7, 0, -3.5]], color: [255, 100, 100]}
     ];
+    if (playerOptions.thirdPersonCamera) {
+        planeTris.push({verts: [[0, 0.2, 0], [0, -0.2, -4], [7, -0.2, -3.5]], color: [255, 100, 100]});
+        planeTris.push({verts: [[0, 0.2, 0], [-7, -0.2, -3.5], [0, -0.2, -4]], color: [255, 100, 100]});
+    }
 
     // Move each vertex
     const tris = [];
@@ -88,7 +91,18 @@ export const drawPlane = (x, y, z, forward, up, right) => {
         let v0 = planeTris[i].verts[0];
         let v1 = planeTris[i].verts[1];
         let v2 = planeTris[i].verts[2];
-        
+
+        const scale = 0.75;
+        v0[0] *= scale;
+        v0[1] *= scale;
+        v0[2] *= scale;
+        v1[0] *= scale;
+        v1[1] *= scale;
+        v1[2] *= scale;
+        v2[0] *= scale;
+        v2[1] *= scale;
+        v2[2] *= scale;
+
         v0 = rotate(v0, forward, up, right);
         v1 = rotate(v1, forward, up, right);
         v2 = rotate(v2, forward, up, right);

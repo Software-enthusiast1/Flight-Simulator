@@ -1,6 +1,6 @@
 // physics.js — Simplified flight-style movement and camera state
 
-import { cameraSmoothingFactor } from './options.js';
+import { cameraSmoothingFactor, playerOptions} from './options.js';
 
 export const player = {
   pos: [0, 40, 5],
@@ -65,18 +65,14 @@ export function getCameraPos() {
   return [camera.pos[0], camera.pos[1], camera.pos[2]];
 }
 
-let thirdPersonCamera = true;
 window.addEventListener('keydown', (event) => {
   if (event.repeat) return;
   if (event.key === 'c') {
-    thirdPersonCamera = !thirdPersonCamera;
+    playerOptions.thirdPersonCamera = !playerOptions.thirdPersonCamera;
   }
 });
 
 export function updatePlayer(dt, keys) {
-  // if (keys['c']) {
-  //   thirdPersonCamera = !thirdPersonCamera;
-  // }
   if (keys['w']) {
     player.throttle = Math.min(THROTTLE_MAX, player.throttle + THROTTLE_STEP * dt);
   } else if (keys['s']) {
@@ -127,7 +123,7 @@ export function updatePlayer(dt, keys) {
   player.pos[2] += player.forward[2] * moveAmount;
 
   // Camera Target Positioning
-  if (thirdPersonCamera) {
+  if (playerOptions.thirdPersonCamera) {
     camera.targetPos[0] = player.pos[0] - player.forward[0] * 10 + player.up[0] * 3;
     camera.targetPos[1] = player.pos[1] - player.forward[1] * 10 + player.up[1] * 3;
     camera.targetPos[2] = player.pos[2] - player.forward[2] * 10 + player.up[2] * 3;
@@ -141,6 +137,15 @@ export function updatePlayer(dt, keys) {
   camera.pos[0] += (camera.targetPos[0] - camera.pos[0]) * cameraSmoothingFactor;
   camera.pos[1] += (camera.targetPos[1] - camera.pos[1]) * cameraSmoothingFactor;
   camera.pos[2] += (camera.targetPos[2] - camera.pos[2]) * cameraSmoothingFactor;
+
+  let maxOffset = 0.2;
+  if (playerOptions.thirdPersonCamera) maxOffset = 10.0;
+  if (camera.pos[0] - camera.targetPos[0] > maxOffset) camera.pos[0] = camera.targetPos[0] + maxOffset;
+  if (camera.pos[0] - camera.targetPos[0] < -maxOffset) camera.pos[0] = camera.targetPos[0] - maxOffset;
+  if (camera.pos[1] - camera.targetPos[1] > maxOffset) camera.pos[1] = camera.targetPos[1] + maxOffset;
+  if (camera.pos[1] - camera.targetPos[1] < -maxOffset) camera.pos[1] = camera.targetPos[1] - maxOffset;
+  if (camera.pos[2] - camera.targetPos[2] > maxOffset) camera.pos[2] = camera.targetPos[2] + maxOffset;
+  if (camera.pos[2] - camera.targetPos[2] < -maxOffset) camera.pos[2] = camera.targetPos[2] - maxOffset;
 
   for (let i = 0; i < 3; i++) {
     camera.forward[i] += -(player.forward[i] - camera.forward[i]) * cameraSmoothingFactor;

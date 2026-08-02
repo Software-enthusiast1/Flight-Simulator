@@ -274,8 +274,8 @@ function importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome) {
 }
 
 function generateCactus(tris, tx, tz, th, rnd) {
-  const cactusH = 1.2 + rnd() * 0.6;
-  const cactusRad = 0.25 + rnd() * 0.08;
+  const cactusH = 1.5 + rnd() * 0.8;
+  const cactusRad = 0.25 + rnd() * 0.2;
   const cactusColor = hslToRgb(0.32, 0.75, 0.35);
   const segments = 5 + Math.floor(rnd() * 3);
 
@@ -316,6 +316,7 @@ function generateCactus(tris, tx, tz, th, rnd) {
 
     for (let a = 0; a < armCount; a++) {
       const spineH = segH + (rnd() - 0.5) * segH * 0.05;
+      if (spineH > th + (segments * segmentH)) continue;
       const angle = ((a / armCount) * Math.PI * 2);
       const armLen = 0.1 + rnd() * 0.15;
       const armX = tx + Math.cos(angle) * (cactusRad + armLen);
