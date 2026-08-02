@@ -3,7 +3,6 @@
 export const resolutionScale = 1;
 export const chunkResolution = 4; // terrain samples per chunk
 export const RENDER_DIST = 5; // in chunks (radius)
-export const thirdPersonCamera = true; // toggle 3rd person camera
 export const cameraSmoothingFactor = 0.3; // smoothing factor for camera movement (0 = no movement, 1 = instant movement)
 
 // Testing terrain generation

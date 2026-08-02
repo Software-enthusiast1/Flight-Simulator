@@ -4,7 +4,7 @@ A flight simulator using the 3D engine and terrain generator I built
 # TODO
 Quick side note low amp will be for the rockyness or smoothness of terrain
 
-- make cockpit window opaque and add the reversed normals of some of the body
+- make cockpit window opaque
 - fix anoyance where camera smoothing or somthing creates an ocolating effect
 
 - Add a large valley system and mountain system onto the map

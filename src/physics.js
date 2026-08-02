@@ -1,6 +1,6 @@
 // physics.js — Simplified flight-style movement and camera state
 
-import { thirdPersonCamera, cameraSmoothingFactor } from './options.js';
+import { cameraSmoothingFactor } from './options.js';
 
 export const player = {
   pos: [0, 40, 5],
@@ -65,7 +65,18 @@ export function getCameraPos() {
   return [camera.pos[0], camera.pos[1], camera.pos[2]];
 }
 
+let thirdPersonCamera = true;
+window.addEventListener('keydown', (event) => {
+  if (event.repeat) return;
+  if (event.key === 'c') {
+    thirdPersonCamera = !thirdPersonCamera;
+  }
+});
+
 export function updatePlayer(dt, keys) {
+  // if (keys['c']) {
+  //   thirdPersonCamera = !thirdPersonCamera;
+  // }
   if (keys['w']) {
     player.throttle = Math.min(THROTTLE_MAX, player.throttle + THROTTLE_STEP * dt);
   } else if (keys['s']) {
