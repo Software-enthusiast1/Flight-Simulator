@@ -71,29 +71,38 @@ function frame(now) {
   // 2. Fetch the camera location
   const eye = getCameraPos();
 
-  // 3. FIX: Build a standard, reliable View Matrix using Euler angles.
-  // This forces all rotations (including roll) to spin perfectly at your camera origin.
-  const cYaw = Math.cos(-camera.yaw + Math.PI);
-  const sYaw = Math.sin(-camera.yaw + Math.PI);
-  const cPitch = Math.cos(-camera.pitch);
-  const sPitch = Math.sin(-camera.pitch);
-  const cRoll = Math.cos(camera.roll);
-  const sRoll = Math.sin(camera.roll);
+  // 3. REPLACED: Build standard View Matrix using camera's basis vectors
+  const z = camera.forward; // Camera Z-axis
+  
+  // Calculate Camera X-axis (Right) = Up x Forward
+  let x = [
+    camera.up[1] * z[2] - camera.up[2] * z[1],
+    camera.up[2] * z[0] - camera.up[0] * z[2],
+    camera.up[0] * z[1] - camera.up[1] * z[0]
+  ];
+  const xLen = Math.hypot(x[0], x[1], x[2]);
+  x = xLen > 0 ? [x[0]/xLen, x[1]/xLen, x[2]/xLen] : [1, 0, 0];
 
-  // Construct a clean, column-major Look-At View Matrix manually
-  const view = [
-    cYaw * cRoll + sYaw * sPitch * sRoll,   cRoll * sYaw * sPitch - cYaw * sRoll,   cPitch * sYaw,   0,
-    cPitch * sRoll,                         cPitch * cRoll,                         -sPitch,         0,
-    cYaw * sPitch * sRoll - cRoll * sYaw,   cYaw * cRoll * sPitch + sYaw * sRoll,   cYaw * cPitch,   0,
-    0,                                      0,                                      0,               1
+  // Calculate Camera True Y-axis (Up) = Forward x Right
+  const y = [
+    z[1] * x[2] - z[2] * x[1],
+    z[2] * x[0] - z[0] * x[2],
+    z[0] * x[1] - z[1] * x[0]
   ];
 
-  // 4. Translate the View Matrix by the camera's position (negative eye vectors)
-  // This shifts the world around your camera position BEFORE any rotations apply.
-  view[12] = -(view[0] * eye[0] + view[4] * eye[1] + view[8] * eye[2]);
-  view[13] = -(view[1] * eye[0] + view[5] * eye[1] + view[9] * eye[2]);
-  view[14] = -(view[2] * eye[0] + view[6] * eye[1] + view[10] * eye[2]);
+  // Dot products for translation
+  const dx = -(x[0] * eye[0] + x[1] * eye[1] + x[2] * eye[2]);
+  const dy = -(y[0] * eye[0] + y[1] * eye[1] + y[2] * eye[2]);
+  const dz = -(z[0] * eye[0] + z[1] * eye[1] + z[2] * eye[2]);
 
+  // Column-Major View Matrix
+  const view = [
+    x[0], y[0], z[0], 0,
+    x[1], y[1], z[1], 0,
+    x[2], y[2], z[2], 0,
+     dx,   dy,   dz,  1
+  ];
+  
   // Draw terrain
   drawTriangles(gl, program, sceneTriangles, projection, view);
 

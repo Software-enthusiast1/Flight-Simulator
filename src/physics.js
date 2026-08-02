@@ -13,13 +13,13 @@ export const player = {
 
 export const camera = {
   pos: [0, 40, 5],
-  yaw: 0,
-  pitch: 0,
-  roll: 0,
+  forward: [0, 0, -1],
+  up: [0, 1, 0],
+  right: [1, 0, 0],
   targetPos: [0, 40, 5],
-  targetYaw: 0,
-  targetPitch: 0,
-  targetRoll: 0,
+  targetForward: [0, 0, 1],
+  targetUp: [0, 1, 0],
+  targetRight: [1, 0, 0],
   fov: 75 * Math.PI / 180,
 };
 
@@ -73,24 +73,24 @@ export function updatePlayer(dt, keys) {
   }
   if (keys['a']) {
     player.forward = rotateVector(player.forward, player.up, ROT_SPEED * dt);
-    player.right = rotateVector(player.right, player.up, ROT_SPEED * dt);
+    player.right   = rotateVector(player.right, player.up, ROT_SPEED * dt);
   } else if (keys['d']) {
     player.forward = rotateVector(player.forward, player.up, -ROT_SPEED * dt);
-    player.right = rotateVector(player.right, player.up, -ROT_SPEED * dt);
+    player.right   = rotateVector(player.right, player.up, -ROT_SPEED * dt);
   }
-  if (keys['arrowright']) {
-    player.forward = rotateVector(player.forward, player.forward, ROT_SPEED * dt);
-    player.up = rotateVector(player.up, player.forward, ROT_SPEED * dt);
-  } else if (keys['arrowleft']) {
-    player.forward = rotateVector(player.forward, player.forward, -ROT_SPEED * dt);
-    player.up = rotateVector(player.up, player.forward, -ROT_SPEED * dt);
+  if (keys['arrowleft']) {
+    player.up    = rotateVector(player.up, player.forward, -ROT_SPEED * dt);
+    player.right = rotateVector(player.right, player.forward, -ROT_SPEED * dt);
+  } else if (keys['arrowright']) {
+    player.up    = rotateVector(player.up, player.forward, ROT_SPEED * dt);
+    player.right = rotateVector(player.right, player.forward, ROT_SPEED * dt);
   }
-  if (keys['arrowdown']) {
-    player.forward = rotateVector(player.forward, player.right, ROT_SPEED * dt);
-    player.up = rotateVector(player.up, player.right, ROT_SPEED * dt);
-  } else if (keys['arrowup']) {
+  if (keys['arrowup']) {
     player.forward = rotateVector(player.forward, player.right, -ROT_SPEED * dt);
-    player.up = rotateVector(player.up, player.right, -ROT_SPEED * dt);
+    player.up      = rotateVector(player.up, player.right, -ROT_SPEED * dt);
+  } else if (keys['arrowdown']) {
+    player.forward = rotateVector(player.forward, player.right, ROT_SPEED * dt);
+    player.up      = rotateVector(player.up, player.right, ROT_SPEED * dt);
   }
 
   // Update right vector to maintain orthogonality
@@ -100,15 +100,14 @@ export function updatePlayer(dt, keys) {
     player.forward[0] * player.up[1] - player.forward[1] * player.up[0]
   ];
 
-  // Normalize vectors to prevent drift
   const normalize = (v) => {
-    const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-    return [v[0]/len, v[1]/len, v[2]/len];
+    const len = Math.hypot(v[0], v[1], v[2]);
+    return len > 0 ? [v[0]/len, v[1]/len, v[2]/len] : [0, 0, 0];
   };
 
   player.forward = normalize(player.forward);
-  player.up = normalize(player.up);
-  player.right = normalize(player.right);
+  player.up      = normalize(player.up);
+  player.right   = normalize(player.right);
 
   const moveAmount = player.throttle * player.speed * dt;
 
@@ -116,7 +115,7 @@ export function updatePlayer(dt, keys) {
   player.pos[1] += player.forward[1] * moveAmount;
   player.pos[2] += player.forward[2] * moveAmount;
 
-  // Change this later for both 1st and 3rd person camera modes
+  // Camera Target Positioning
   if (thirdPersonCamera) {
     camera.targetPos[0] = player.pos[0] - player.forward[0] * 10 + player.up[0] * 3;
     camera.targetPos[1] = player.pos[1] - player.forward[1] * 10 + player.up[1] * 3;
@@ -126,10 +125,16 @@ export function updatePlayer(dt, keys) {
     camera.targetPos[1] = player.pos[1];
     camera.targetPos[2] = player.pos[2];
   }
+
+  // Smooth camera Position
   camera.pos[0] += (camera.targetPos[0] - camera.pos[0]) * cameraSmoothingFactor;
   camera.pos[1] += (camera.targetPos[1] - camera.pos[1]) * cameraSmoothingFactor;
   camera.pos[2] += (camera.targetPos[2] - camera.pos[2]) * cameraSmoothingFactor;
-  // camera.pitch += (camera.targetPitch - camera.pitch) * cameraSmoothingFactor;
-  // camera.yaw += (camera.targetYaw - camera.yaw) * cameraSmoothingFactor;
-  // camera.roll += (camera.targetRoll - camera.roll) * cameraSmoothingFactor;
+
+  for (let i = 0; i < 3; i++) {
+    camera.forward[i] += -(player.forward[i] - camera.forward[i]) * cameraSmoothingFactor;
+    camera.up[i]      += (player.up[i] - camera.up[i]) * cameraSmoothingFactor;
+  }
+  camera.forward = normalize(camera.forward);
+  camera.up      = normalize(camera.up);
 }

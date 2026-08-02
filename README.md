@@ -4,8 +4,15 @@ A flight simulator using the 3D engine and terrain generator I built
 # TODO
 Quick side note low amp will be for the rockyness or smoothness of terrain
 
+- make cockpit window opaque and add the reversed normals of some of the body
+- fix anoyance where camera smoothing or somthing creates an ocolating effect
+
 - Add a large valley system and mountain system onto the map
-- add arches and bridges and overhangs and cliffs
+- add arches and bridges and overhangs and cliffs (very hard)
+- Water is boring, add islands
+- Land is boring, and lakes and ponds
+- readjust coloring of terrain
+- terrain coloring gradients
 
 - Foliage be looking weird
 
@@ -13,14 +20,6 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
     - Add level of detail
     - cull tris behind screen(?)
     - Ocean tris steal SOOO much processing, fix?
-
-- Instead of 50/50 water land make it more like 30/70
-
-- Water is boring, add islands
-- Land is boring, and lakes and ponds
-
-- readjust coloring of terrain
-- make colors more natural (maybe gradients or textures)
 
 - (FIX) better align foliage render distance with land render distance
 - Add motion blur so low framerate (ie on chromebook or raspberry pi 5 (my only two computers)) doesnt look as bad
