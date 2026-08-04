@@ -1,7 +1,7 @@
 // world.js — World and chunk management
 
 import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
-import { RENDER_DIST, chunkResolution, foliage, water, color, lowAmp } from './options.js';
+import { RENDER_DIST, chunkResolution, vegitation, water, color, vegitationRenderDist } from './options.js';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_RESOLUTION = Math.max(1, chunkResolution);
@@ -16,10 +16,8 @@ export function getChunkKey(chunkX, chunkZ) {
 export function terrainHeightAt(x, z, seed = worldSeed) {
   let h = (perlinNoise(x * 0.2, z * 0.2, seed - 4) * 20.0) + 20;
   h += (perlinNoise(x * 0.7, z * 0.7, seed - 3) * 7.0) + 7;
-  if (lowAmp) {
-    h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
-    h += (perlinNoise(x * 5.5, z * 5.5, seed - 1) * 0.1) + 0.1;
-  }
+  h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
+  h += (perlinNoise(x * 5.5, z * 5.5, seed - 1) * 0.1) + 0.1;
 
   if (water) {
     const biomeWater = perlinNoise(x * 0.02, z * 0.02, seed - 999);
@@ -38,7 +36,7 @@ export function terrainHeightAt(x, z, seed = worldSeed) {
   return h;
 }
 
-function generateChunk(chunkX, chunkZ) {
+function generateChunk(chunkX, chunkZ, getBiome) {
   const key = getChunkKey(chunkX, chunkZ);
   if (worldChunks.has(key)) return worldChunks.get(key);
 
@@ -49,22 +47,6 @@ function generateChunk(chunkX, chunkZ) {
   // World position of chunk corner
   const offsetX = chunkX * CHUNK_SIZE;
   const offsetZ = chunkZ * CHUNK_SIZE;
-
-  const getBiomeTemp = (x, z) => {
-    //Outputs a random biome temp
-    const biomeTemp = perlinNoise(x * 0.1, z * 0.1, worldSeed + 999);
-    return biomeTemp;
-  };
-
-  // Get discrete biome from continuous biome value
-  const getBiome = (x, z) => {
-    const biomeVal = getBiomeTemp(x, z);
-
-    if (biomeVal < -0.40) return 'desert';
-    if (biomeVal < 0.55) return 'plains';
-    if (biomeVal < 0.7) return 'snowy_plains';
-    return 'mountains';
-  };
 
   // Use perlin-like noise for better terrain with peaks
   const heightAt = (x, z) => terrainHeightAt(x, z, worldSeed);
@@ -125,15 +107,15 @@ function generateChunk(chunkX, chunkZ) {
   const colorByBiome = (h, x, z) => {
     const biome = getBiome(x, z);
     const atPeak = isAtPeak(x, z);
-    if (biome === 'desert') return h < 6 ? hslToRgb(0.12, 0.75, 0.54) : hslToRgb(0.13, 0.75, 0.58);
-    if (biome === 'plains') return h < 6 ? hslToRgb(0.28, 0.75, 0.42) : hslToRgb(0.25, 0.75, 0.36);
+    if (biome === 'desert') return h < 20 ? hslToRgb(0.12, 0.75, 0.54) : hslToRgb(0.13, 0.75, 0.58);
+    if (biome === 'plains') return h < 20 ? hslToRgb(0.28, 0.75, 0.42) : hslToRgb(0.25, 0.75, 0.36);
     if (biome === 'snowy_plains') {
-      if (h < 6) return hslToRgb(0, 0, 0.85);
+      if (h < 20) return hslToRgb(0, 0, 0.85);
       return hslToRgb(0, 0, 0.9);
     }
     if (biome === 'mountains') {
       if (atPeak) return hslToRgb(0, 0, 0.95);
-      if (h > 6) return hslToRgb(0, 0, 0.55);
+      if (h > 20) return hslToRgb(0, 0, 0.55);
       return hslToRgb(0, 0, 0.5);
     }
     return hslToRgb(0, 0, 0.5);
@@ -199,22 +181,17 @@ function generateChunk(chunkX, chunkZ) {
     }
   }
 
-  // Import vegetation generation from vegetation.js
-  if (foliage) {
-    importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome);
-  }
-
   const chunk = { tris };
   worldChunks.set(key, chunk);
   return chunk;
 }
 
 // Dynamically import vegetation
-function importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome) {
+function generateVegetation(tris, chunkX, chunkZ, rnd, heightAt, getBiome) {
   // add procedural trees to chunk
   let baseTrees = -10 + Math.floor(rnd() * 8);
-  const biomeSampleX = offsetX + CHUNK_SIZE * 0.5;
-  const biomeSampleZ = offsetZ + CHUNK_SIZE * 0.5;
+  const biomeSampleX = chunkX + CHUNK_SIZE * 0.5;
+  const biomeSampleZ = chunkZ + CHUNK_SIZE * 0.5;
   const sampleBiome = getBiome(biomeSampleX, biomeSampleZ);
   if (sampleBiome === 'desert') baseTrees = Math.max(0, Math.floor(baseTrees * 0.35));
   if (sampleBiome === 'plains' || sampleBiome === 'snowy_plains') baseTrees = Math.max(1, Math.floor(baseTrees * 1.2));
@@ -224,8 +201,8 @@ function importVegetation(tris, offsetX, offsetZ, rnd, heightAt, getBiome) {
   const positions = [];
   const outliers = Math.max(1, Math.floor(treeCount * 0.3));
   for (let o = 0; o < outliers; o++) {
-    const tx = offsetX + (rnd() - 0.5) * CHUNK_SIZE * 0.95;
-    const tz = offsetZ + (rnd() - 0.5) * CHUNK_SIZE * 0.95;
+    const tx = chunkX + (rnd() - 0.5) * CHUNK_SIZE * 0.95;
+    const tz = chunkZ + (rnd() - 0.5) * CHUNK_SIZE * 0.95;
     positions.push({ x: tx, z: tz, cluster: false });
   }
 
@@ -428,11 +405,32 @@ export function generateWorld(seed) {
 export function rebuildSceneTriangles(playerChunkX, playerChunkZ) {
   const sceneTriangles = [];
 
+  // Get discrete biome from continuous biome value (moved to higher scope)
+  const getBiome = (x, z) => {
+    const biomeVal = perlinNoise(x * 0.1, z * 0.1, worldSeed + 999);
+
+    if (biomeVal < -0.40) return 'desert';
+    if (biomeVal < 0.55) return 'plains';
+    if (biomeVal < 0.7) return 'snowy_plains';
+    return 'mountains';
+  };
+
   // Generate/load chunks around player
   for (let cx = playerChunkX - RENDER_DIST; cx <= playerChunkX + RENDER_DIST; cx++) {
     for (let cz = playerChunkZ - RENDER_DIST; cz <= playerChunkZ + RENDER_DIST; cz++) {
-      const chunk = generateChunk(cx, cz);
+      const chunk = generateChunk(cx, cz, getBiome);
       sceneTriangles.push(...chunk.tris);
+    }
+  }
+
+  // Import vegetation generation from vegetation.js
+  if (vegitation) {
+    for (let cx = playerChunkX - vegitationRenderDist; cx <= playerChunkX + vegitationRenderDist; cx++) {
+      for (let cz = playerChunkZ - vegitationRenderDist; cz <= playerChunkZ + vegitationRenderDist; cz++) {
+        const seed = worldSeed ^ (cx * 73856093) ^ (cz * 19349663);
+        const rnd = mulberry32(seed | 0);
+        generateVegetation(sceneTriangles, cx * CHUNK_SIZE, cz * CHUNK_SIZE, rnd, terrainHeightAt, getBiome);
+      }
     }
   }
 

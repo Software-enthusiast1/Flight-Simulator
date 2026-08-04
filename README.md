@@ -4,6 +4,10 @@ A flight simulator using the 3D engine and terrain generator I built
 # TODO
 Quick side note low amp will be for the rockyness or smoothness of terrain
 
+- for LOD, first 5 chunk radius will have chunk res of 4, and next 10 will have 2, and the rest 1
+- for LOD, water must be above 1 chunk res, so it will probably be at 2 for first 5 and the rest 1
+- vegitation is the main problem with lag. make a vegitation render distance (not working because chunks need to all be reloaded every time new chunks are loaded) (also still very laggy with only a 5 render distance)
+
 - make cockpit window opaque
 - fix anoyance where camera smoothing or somthing creates an ocolating effect
 
@@ -14,16 +18,7 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
 - readjust coloring of terrain
 - terrain coloring gradients
 
-- Foliage be looking weird
-
-- it needs more render distance, figure out ways to optimise
-    - Add level of detail
-    - cull tris behind screen(?)
-    - Ocean tris steal SOOO much processing, fix?
-
-- (FIX) better align foliage render distance with land render distance
 - Add motion blur so low framerate (ie on chromebook or raspberry pi 5 (my only two computers)) doesnt look as bad
-- screen tearing (I don't think it is a vsnyc issue because it happens at really low fps)
 
 - Make a it a flight sim with plane phisics and such
     - ground effect
@@ -35,7 +30,7 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
     - biome effects like snow
     - Plane go boom? (crash boom based off of speed)
     - visual wake in water and sand
-    - Wind in foliage
+    - Wind in vegitation
     - folage moves when you fly by fast
     - high speed effects (more fov, wind particles, shake)
     - birb?

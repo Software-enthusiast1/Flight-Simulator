@@ -92,7 +92,7 @@ export const drawPlane = (x, y, z, forward, up, right) => {
         let v1 = planeTris[i].verts[1];
         let v2 = planeTris[i].verts[2];
 
-        const scale = 0.75;
+        const scale = 0.5;
         v0[0] *= scale;
         v0[1] *= scale;
         v0[2] *= scale;

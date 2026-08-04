@@ -29,7 +29,7 @@ function generateOceanChunk(chunkX, chunkZ, worldSeed, time) {
   const offsetZ = chunkZ * CHUNK_SIZE;
 
   const oceanColor = hslToRgb(0.55, 1, 0.60);
-  const resolution = CHUNK_RESOLUTION;
+  const resolution = CHUNK_RESOLUTION / 2;
   const sampleStep = CHUNK_SIZE / resolution;
 
   // Generate ocean surface mesh with animated waves
@@ -44,15 +44,16 @@ function generateOceanChunk(chunkX, chunkZ, worldSeed, time) {
       const centerZ = (z0 + z1) * 0.5;
       const terrainHeight = terrainHeightAt(centerX, centerZ, worldSeed);
 
-      if (terrainHeight > 2.0) continue;
+      if (terrainHeight > 5.0) continue;
 
       // Get wave height at each corner using 4D perlin noise
-      const amplitude = 0.85; // Wave amplitude
+      const amplitude = 1; // Wave amplitude
       const waveLength = 0.4; // Wave length
-      const h00 = perlinNoise4D(x0 * waveLength, z0 * waveLength, time * 0.001, worldSeed) * amplitude;
-      const h10 = perlinNoise4D(x1 * waveLength, z0 * waveLength, time * 0.001, worldSeed) * amplitude;
-      const h01 = perlinNoise4D(x0 * waveLength, z1 * waveLength, time * 0.001, worldSeed) * amplitude;
-      const h11 = perlinNoise4D(x1 * waveLength, z1 * waveLength, time * 0.001, worldSeed) * amplitude;
+      const speed = 0.003;
+      const h00 = perlinNoise4D(x0 * waveLength, z0 * waveLength, time * speed, worldSeed) * amplitude;
+      const h10 = perlinNoise4D(x1 * waveLength, z0 * waveLength, time * speed, worldSeed) * amplitude;
+      const h01 = perlinNoise4D(x0 * waveLength, z1 * waveLength, time * speed, worldSeed) * amplitude;
+      const h11 = perlinNoise4D(x1 * waveLength, z1 * waveLength, time * speed, worldSeed) * amplitude;
 
       // Water surface is at y=0 + wave height
       const v00 = [x0, h00, z0];
