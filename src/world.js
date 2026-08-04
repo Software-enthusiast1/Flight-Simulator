@@ -1,7 +1,8 @@
 // world.js — World and chunk management
 
 import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
-import { RENDER_DIST, chunkResolution, vegitation, water, color, vegitationRenderDist } from './options.js';
+import { RENDER_DIST, chunkResolution, vegetation, water, color, vegetationRenderDist } from './options.js';
+import { heightAt } from './math.js';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_RESOLUTION = Math.max(1, chunkResolution);
@@ -13,7 +14,7 @@ export function getChunkKey(chunkX, chunkZ) {
   return `${chunkX},${chunkZ}`;
 }
 
-export function terrainHeightAt(x, z, seed = worldSeed) {
+export function terrainHeightAt(x, z, seed) {
   let h = (perlinNoise(x * 0.2, z * 0.2, seed - 4) * 20.0) + 20;
   h += (perlinNoise(x * 0.7, z * 0.7, seed - 3) * 7.0) + 7;
   h += (perlinNoise(x * 2.5, z * 2.5, seed - 2) * 0.4) + 0.4;
@@ -48,35 +49,6 @@ function generateChunk(chunkX, chunkZ, getBiome) {
   const offsetX = chunkX * CHUNK_SIZE;
   const offsetZ = chunkZ * CHUNK_SIZE;
 
-  // Use perlin-like noise for better terrain with peaks
-  const heightAt = (x, z) => terrainHeightAt(x, z, worldSeed);
-
-  // Function to check if a point is at a peak (for coloring)
-  const isAtPeak = (x, z) => {
-    const biome = getBiome(x, z);
-    if (biome !== 'mountains') return false;
-
-    for (let octave = 0; octave < 3; octave++) {
-      const freq = 0.003 * Math.pow(2, octave);
-      const seedRnd = mulberry32((worldSeed + octave * 12345) | 0);
-      const offsetX_rnd = seedRnd() * Math.PI * 2;
-      const offsetZ_rnd = seedRnd() * Math.PI * 2;
-
-      const peakVal = Math.sin(x * freq + offsetX_rnd) * Math.cos(z * freq + offsetZ_rnd);
-
-      if (peakVal > 0.4) {
-        const peakSpacing = 1.0 / freq;
-        const peakCenterX = Math.round(x / peakSpacing) * peakSpacing;
-        const peakCenterZ = Math.round(z / peakSpacing) * peakSpacing;
-        const distToPeak = Math.hypot(x - peakCenterX, z - peakCenterZ);
-        const peakRadius = peakSpacing * 0.15;
-
-        if (distToPeak < peakRadius) return true;
-      }
-    }
-    return false;
-  };
-
   // generate a padded terrain grid (one extra row/col on each side) to allow smoothing across chunk borders
   const PAD = 1;
   const resolution = CHUNK_RESOLUTION;
@@ -89,7 +61,7 @@ function generateChunk(chunkX, chunkZ, getBiome) {
     for (let iz = 0; iz < padSize; iz++) {
       const worldX = offsetX + (ix - PAD) * sampleStep;
       const worldZ = offsetZ + (iz - PAD) * sampleStep;
-      const h = heightAt(worldX, worldZ);
+      const h = terrainHeightAt(worldX, worldZ, worldSeed);
       padded[ix * padSize + iz] = { x: worldX, z: worldZ, h };
     }
   }
@@ -106,17 +78,11 @@ function generateChunk(chunkX, chunkZ, getBiome) {
   // color helper (kept from previous implementation)
   const colorByBiome = (h, x, z) => {
     const biome = getBiome(x, z);
-    const atPeak = isAtPeak(x, z);
     if (biome === 'desert') return h < 20 ? hslToRgb(0.12, 0.75, 0.54) : hslToRgb(0.13, 0.75, 0.58);
     if (biome === 'plains') return h < 20 ? hslToRgb(0.28, 0.75, 0.42) : hslToRgb(0.25, 0.75, 0.36);
     if (biome === 'snowy_plains') {
       if (h < 20) return hslToRgb(0, 0, 0.85);
       return hslToRgb(0, 0, 0.9);
-    }
-    if (biome === 'mountains') {
-      if (atPeak) return hslToRgb(0, 0, 0.95);
-      if (h > 20) return hslToRgb(0, 0, 0.55);
-      return hslToRgb(0, 0, 0.5);
     }
     return hslToRgb(0, 0, 0.5);
   };
@@ -187,7 +153,9 @@ function generateChunk(chunkX, chunkZ, getBiome) {
 }
 
 // Dynamically import vegetation
-function generateVegetation(tris, chunkX, chunkZ, rnd, heightAt, getBiome) {
+function generateVegetation(sceneTris, chunkX, chunkZ, rnd, heightAt, getBiome) {
+  let tris = [];
+
   // add procedural trees to chunk
   let baseTrees = -10 + Math.floor(rnd() * 8);
   const biomeSampleX = chunkX + CHUNK_SIZE * 0.5;
@@ -195,7 +163,6 @@ function generateVegetation(tris, chunkX, chunkZ, rnd, heightAt, getBiome) {
   const sampleBiome = getBiome(biomeSampleX, biomeSampleZ);
   if (sampleBiome === 'desert') baseTrees = Math.max(0, Math.floor(baseTrees * 0.35));
   if (sampleBiome === 'plains' || sampleBiome === 'snowy_plains') baseTrees = Math.max(1, Math.floor(baseTrees * 1.2));
-  if (sampleBiome === 'mountains') baseTrees = Math.max(2, Math.floor(baseTrees * 1.6));
   const treeCount = baseTrees;
 
   const positions = [];
@@ -210,7 +177,7 @@ function generateVegetation(tris, chunkX, chunkZ, rnd, heightAt, getBiome) {
   for (const ppos of positions) {
     const tx = ppos.x;
     const tz = ppos.z;
-    const th = heightAt(tx, tz);
+    const th = heightAt(tx, tz, sceneTris);
     const biome = getBiome(tx, tz);
 
     let canPlaceVegetation = false;
@@ -231,26 +198,26 @@ function generateVegetation(tris, chunkX, chunkZ, rnd, heightAt, getBiome) {
         canPlaceVegetation = true;
         vegetationType = 'evergreen';
       }
-    } else if (biome === 'mountains') {
-      if (th > 0) {
-        canPlaceVegetation = true;
-        vegetationType = 'evergreen';
-      }
     }
 
     if (!canPlaceVegetation) continue;
 
     if (vegetationType === 'cactus') {
-      generateCactus(tris, tx, tz, th, rnd);
+      const cactus = generateCactus(tx, tz, th, rnd);
+      tris.push(...cactus);
     } else if (vegetationType === 'evergreen') {
-      generateEvergreen(tris, tx, tz, th, rnd);
+      const evergreen = generateEvergreen(tx, tz, th, rnd);
+      tris.push(...evergreen);
     } else if (vegetationType === 'oak') {
-      generateOak(tris, tx, tz, th, rnd);
+      const oak = generateOak(tx, tz, th, rnd);
+      tris.push(...oak);
     }
   }
+  return tris;
 }
 
-function generateCactus(tris, tx, tz, th, rnd) {
+function generateCactus(tx, tz, th, rnd) {
+  let tris = [];
   const cactusH = 1.5 + rnd() * 0.8;
   const cactusRad = 0.25 + rnd() * 0.2;
   const cactusColor = hslToRgb(0.32, 0.75, 0.35);
@@ -279,7 +246,7 @@ function generateCactus(tris, tx, tz, th, rnd) {
         const v4 = [tx, th + (seg + 1.5) * segmentH, tz];
         tris.push({ verts: [v2, v3, v4], color: cactusColor });
       } else if (seg === 0) {
-        const v4 = [tx, th - segmentH * 2, tz];
+        const v4 = [tx, th - segmentH * 5, tz];
         tris.push({ verts: [v0, v1, v4], color: cactusColor });
       }
     }
@@ -294,6 +261,7 @@ function generateCactus(tris, tx, tz, th, rnd) {
     for (let a = 0; a < armCount; a++) {
       const spineH = segH + (rnd() - 0.5) * segH * 0.05;
       if (spineH > th + (segments * segmentH)) continue;
+      if (spineH < th) continue;
       const angle = ((a / armCount) * Math.PI * 2);
       const armLen = 0.1 + rnd() * 0.15;
       const armX = tx + Math.cos(angle) * (cactusRad + armLen);
@@ -317,9 +285,11 @@ function generateCactus(tris, tx, tz, th, rnd) {
       tris.push({ verts: [v3, v4, v1], color: spineColor });
     }
   }
+  return tris;
 }
 
-function generateEvergreen(tris, tx, tz, th, rnd) {
+function generateEvergreen(tx, tz, th, rnd) {
+  let tris = [];
   const height = 10 + rnd() * 1.5;
   const leavesHeight = th + height * 0.1 * rnd() + 0.8;
   const treeColor = hslToRgb(0.35, 0.7, 0.35);
@@ -359,9 +329,11 @@ function generateEvergreen(tris, tx, tz, th, rnd) {
       random2 = rnd() * 0.75;
     }
   }
+  return tris;
 }
 
-function generateOak(tris, tx, tz, th, rnd) {
+function generateOak(tx, tz, th, rnd) {
+  let tris = [];
   const height = 5 + rnd();
   const leavesHeight = th + height * 0.1 * rnd() + 0.8;
   const treeColor = hslToRgb(0.35, 0.8 + rnd() * 0.4, 0.20 + rnd() * 0.4);
@@ -395,6 +367,7 @@ function generateOak(tris, tx, tz, th, rnd) {
       tris.push({ verts: [v0, v1, v3], color: treeColor });
     }
   }
+  return tris;
 }
 
 export function generateWorld(seed) {
@@ -407,12 +380,12 @@ export function rebuildSceneTriangles(playerChunkX, playerChunkZ) {
 
   // Get discrete biome from continuous biome value (moved to higher scope)
   const getBiome = (x, z) => {
-    const biomeVal = perlinNoise(x * 0.1, z * 0.1, worldSeed + 999);
+    // Biome value is based of of a simple heatmap
+    const biomeVal = perlinNoise(x * 0.01, z * 0.01, worldSeed + 999);
 
-    if (biomeVal < -0.40) return 'desert';
-    if (biomeVal < 0.55) return 'plains';
-    if (biomeVal < 0.7) return 'snowy_plains';
-    return 'mountains';
+    if (biomeVal < -0.33) return 'desert';
+    if (biomeVal < 0.33) return 'plains';
+    return 'snowy_plains';
   };
 
   // Generate/load chunks around player
@@ -424,12 +397,13 @@ export function rebuildSceneTriangles(playerChunkX, playerChunkZ) {
   }
 
   // Import vegetation generation from vegetation.js
-  if (vegitation) {
-    for (let cx = playerChunkX - vegitationRenderDist; cx <= playerChunkX + vegitationRenderDist; cx++) {
-      for (let cz = playerChunkZ - vegitationRenderDist; cz <= playerChunkZ + vegitationRenderDist; cz++) {
+  if (vegetation) {
+    for (let cx = playerChunkX - vegetationRenderDist; cx <= playerChunkX + vegetationRenderDist; cx++) {
+      for (let cz = playerChunkZ - vegetationRenderDist; cz <= playerChunkZ + vegetationRenderDist; cz++) {
         const seed = worldSeed ^ (cx * 73856093) ^ (cz * 19349663);
         const rnd = mulberry32(seed | 0);
-        generateVegetation(sceneTriangles, cx * CHUNK_SIZE, cz * CHUNK_SIZE, rnd, terrainHeightAt, getBiome);
+        const vegetation = generateVegetation(sceneTriangles, cx * CHUNK_SIZE, cz * CHUNK_SIZE, rnd, heightAt, getBiome);
+        sceneTriangles.push(...vegetation);
       }
     }
   }

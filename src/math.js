@@ -57,3 +57,36 @@ export function lookAtMatrix(eye, target, up, roll) {
   out[15] = m[15];
   return out;
 }
+
+// Ray-cast down from pos to find ground height
+export function heightAt(x, z, sceneTriangles) {
+  // Simple heightfield lookup using scene triangles with barycentric interpolation
+  let maxY = -100;
+
+  for (const tri of sceneTriangles) {
+    const v0 = tri.verts[0], v1 = tri.verts[1], v2 = tri.verts[2];
+
+    // bounding box check (early exit)
+    const minX = Math.min(v0[0], v1[0], v2[0]);
+    const maxX = Math.max(v0[0], v1[0], v2[0]);
+    const minZ = Math.min(v0[2], v1[2], v2[2]);
+    const maxZ = Math.max(v0[2], v1[2], v2[2]);
+
+    if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+      // Barycentric coordinates for point in triangle
+      const denom = ((v1[2] - v2[2]) * (v0[0] - v2[0]) + (v2[0] - v1[0]) * (v0[2] - v2[2]));
+      if (Math.abs(denom) < 0.0001) continue; // degenerate triangle
+
+      const a = ((v1[2] - v2[2]) * (x - v2[0]) + (v2[0] - v1[0]) * (z - v2[2])) / denom;
+      const b = ((v2[2] - v0[2]) * (x - v2[0]) + (v0[0] - v2[0]) * (z - v2[2])) / denom;
+      const c = 1 - a - b;
+
+      // if point is inside triangle
+      if (a >= -0.01 && b >= -0.01 && c >= -0.01) {
+        const h = a * v0[1] + b * v1[1] + c * v2[1];
+        maxY = Math.max(maxY, h);
+      }
+    }
+  }
+  return maxY;
+}
