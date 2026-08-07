@@ -304,7 +304,7 @@ function generateEvergreen(tx, tz, th, rnd) {
     const v1 = [tx + Math.cos(a1) * trunkRad, th, tz + Math.sin(a1) * trunkRad];
     const v2 = [tx + Math.cos(a2) * trunkRad, th, tz + Math.sin(a2) * trunkRad];
     tris.push({ verts: [v2, v1, trunkTop], color: trunkColor });
-    tris.push({ verts: [v1, v2, [tx, 0 - height, tz]], color: trunkColor });
+    tris.push({ verts: [v1, v2, [tx, th - 2, tz]], color: trunkColor });
   }
 
   const layers = 6;
@@ -348,7 +348,7 @@ function generateOak(tx, tz, th, rnd) {
     const v1 = [tx + Math.cos(a1) * trunkRad, th, tz + Math.sin(a1) * trunkRad];
     const v2 = [tx + Math.cos(a2) * trunkRad, th, tz + Math.sin(a2) * trunkRad];
     tris.push({ verts: [v2, v1, trunkTop], color: trunkColor });
-    tris.push({ verts: [v1, v2, [tx, 0 - height, tz]], color: trunkColor });
+    tris.push({ verts: [v1, v2, [tx, th-2, tz]], color: trunkColor });
   }
 
   const layers = 8;

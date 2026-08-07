@@ -26,6 +26,10 @@ let sceneTriangles = [];
 let lastPlayerChunkX = 0;
 let lastPlayerChunkZ = 0;
 
+const fpsElement = document.getElementById('fps');
+let frameCount = 0;
+let fpsLastTime = performance.now();
+
 // Setup input handlers
 setupInput();
 
@@ -49,6 +53,15 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+
+  frameCount++;
+  if (now - fpsLastTime >= 250) {
+    if (fpsElement) {
+      fpsElement.textContent = `FPS: ${frameCount * 4}`;
+    }
+    frameCount = 0;
+    fpsLastTime = now;
+  }
 
   // Update movement and camera state
   updatePlayer(dt, keys);
