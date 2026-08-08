@@ -7,7 +7,7 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
 - for LOD, first 5 chunk radius will have chunk res of 4, and next 10 will have 2, and the rest 1
 - for LOD, water must be above 1 chunk res, so it will probably be at 2 for first 5 and the rest 1
 - vegetation (mostly cacti (probably due to tiny spikes)) is the main problem with lag. 
-- new height calculation of terrain is computationaly expensive, optimise?
+- new height calculation of terrain is computationaly expensive, optimise (only check tris with same chunk as early out)
 
 - make cockpit window opaque
 - fix anoyance where camera smoothing or somthing creates an ocolating effect

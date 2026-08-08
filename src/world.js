@@ -178,6 +178,7 @@ function generateVegetation(sceneTris, chunkX, chunkZ, rnd, heightAt, getBiome) 
     const tx = ppos.x;
     const tz = ppos.z;
     const th = heightAt(tx, tz, sceneTris);
+    if (th === -100) continue; // skip if no terrain found (ocean)
     const biome = getBiome(tx, tz);
 
     let canPlaceVegetation = false;

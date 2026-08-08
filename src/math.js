@@ -65,6 +65,10 @@ export function heightAt(x, z, sceneTriangles) {
 
   for (const tri of sceneTriangles) {
     const v0 = tri.verts[0], v1 = tri.verts[1], v2 = tri.verts[2];
+    
+    const maxDist = 10; // early exit if triangle is too far away
+    if (Math.abs(v0[0] - x) > maxDist || Math.abs(v1[0] - x) > maxDist || Math.abs(v2[0] - x) > maxDist) continue;
+    if (Math.abs(v0[2] - z) > maxDist || Math.abs(v1[2] - z) > maxDist || Math.abs(v2[2] - z) > maxDist) continue;
 
     // bounding box check (early exit)
     const minX = Math.min(v0[0], v1[0], v2[0]);
