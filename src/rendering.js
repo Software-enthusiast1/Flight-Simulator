@@ -1,6 +1,6 @@
 // rendering.js — WebGL setup and drawing functions
 
-import { vec3 } from './math.js';
+import { vec3, triangleNormal } from './math.js';
 import { resolutionScale } from './options.js';
 
 export function setupWebGL(canvas) {
@@ -68,28 +68,27 @@ export function createShaderProgram(gl) {
   return program;
 }
 
-export function drawTriangles(gl, program, triangles, projection, view) {
+export function drawTriangles(gl, program, triangles, projection, view, stationary) {
   const positions = [];
   const colors = [];
   const normals = [];
 
-  for (const tri of triangles) {
-    // Calculate face normal
-    const e1 = [
-      tri.verts[1][0] - tri.verts[0][0],
-      tri.verts[1][1] - tri.verts[0][1],
-      tri.verts[1][2] - tri.verts[0][2]
-    ];
-    const e2 = [
-      tri.verts[2][0] - tri.verts[0][0],
-      tri.verts[2][1] - tri.verts[0][1],
-      tri.verts[2][2] - tri.verts[0][2]
-    ];
-    const n = vec3.norm(vec3.cross(e1, e2));
-    for (let i = 0; i < 3; ++i) {
-      positions.push(...tri.verts[i]);
-      colors.push(...tri.color.map(c => c / 255));
-      normals.push(...n);
+  if (!stationary) {
+    for (const tri of triangles) {
+      const n = triangleNormal(tri.verts[0], tri.verts[1], tri.verts[2]);
+      for (let i = 0; i < 3; ++i) {
+        positions.push(...tri.verts[i]);
+        colors.push(...tri.color.map(c => c / 255));
+        normals.push(...n);
+      }
+    }
+  } else {
+    for (const tri of triangles) {
+      for (let i = 0; i < 3; ++i) {
+        normals.push(...tri.normal);
+        positions.push(...tri.verts[i]);
+        colors.push(...tri.color.map(c => c / 255));
+      }
     }
   }
 

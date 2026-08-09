@@ -117,14 +117,14 @@ function frame(now) {
   ];
   
   // Draw terrain
-  drawTriangles(gl, program, sceneTriangles, projection, view);
+  drawTriangles(gl, program, sceneTriangles, projection, view, true);
 
   // Draw animated ocean
   const oceanTriangles = rebuildOceanTriangles(player.pos, worldSeed, now);
-  drawTriangles(gl, program, oceanTriangles, projection, view);
+  drawTriangles(gl, program, oceanTriangles, projection, view, false);
 
   const planeTriangles = drawPlane(player.pos[0], player.pos[1], player.pos[2], player.forward, player.up, player.right);
-  drawTriangles(gl, program, planeTriangles, projection, view);
+  drawTriangles(gl, program, planeTriangles, projection, view, false);
 
   requestAnimationFrame(frame);
 }

@@ -2,7 +2,7 @@
 
 import { mulberry32, perlinNoise, hslToRgb } from './noise.js';
 import { RENDER_DIST, chunkResolution, vegetation, water, color, vegetationRenderDist } from './options.js';
-import { heightAt } from './math.js';
+import { heightAt, triangleNormal } from './math.js';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_RESOLUTION = Math.max(1, chunkResolution);
@@ -133,16 +133,16 @@ function generateChunk(chunkX, chunkZ, getBiome) {
         const cz = (heights[i1].z + heights[i2].z + heights[i3].z + heights[i4].z) / 4;
         const ch = (h00 + h10 + h01 + h11) / 4;
         const vc = [cx, ch, cz];
-        tris.push({ verts: [v00, v10, vc], color: col });
-        tris.push({ verts: [v10, v11, vc], color: col });
-        tris.push({ verts: [v11, v01, vc], color: col });
-        tris.push({ verts: [v01, v00, vc], color: col });
+        tris.push({ verts: [v00, v10, vc], color: col, normal: triangleNormal(v00, v10, vc) });
+        tris.push({ verts: [v10, v11, vc], color: col, normal: triangleNormal(v10, v11, vc) });
+        tris.push({ verts: [v11, v01, vc], color: col, normal: triangleNormal(v11, v01, vc) });
+        tris.push({ verts: [v01, v00, vc], color: col, normal: triangleNormal(v01, v00, vc) });
       } else if (diag1 < 0.5) {
-        tris.push({ verts: [v00, v10, v11], color: col });
-        tris.push({ verts: [v00, v11, v01], color: col });
+        tris.push({ verts: [v00, v10, v11], color: col, normal: triangleNormal(v00, v10, v11) });
+        tris.push({ verts: [v00, v11, v01], color: col, normal: triangleNormal(v00, v11, v01) });
       } else {
-        tris.push({ verts: [v00, v10, v01], color: col });
-        tris.push({ verts: [v10, v11, v01], color: col });
+        tris.push({ verts: [v00, v10, v01], color: col, normal: triangleNormal(v00, v10, v01) });
+        tris.push({ verts: [v10, v11, v01], color: col, normal: triangleNormal(v10, v11, v01) });
       }
     }
   }
@@ -240,15 +240,15 @@ function generateCactus(tx, tz, th, rnd) {
       const v1 = [tx + Math.cos(a2) * rad1, h1, tz + Math.sin(a2) * rad1];
       const v2 = [tx + Math.cos(a2) * rad2, h2, tz + Math.sin(a2) * rad2];
       const v3 = [tx + Math.cos(a1) * rad2, h2, tz + Math.sin(a1) * rad2];
-      tris.push({ verts: [v0, v2, v1], color: cactusColor });
-      tris.push({ verts: [v0, v3, v2], color: cactusColor });
+      tris.push({ verts: [v0, v2, v1], color: cactusColor, normal: triangleNormal(v0, v2, v1) });
+      tris.push({ verts: [v0, v3, v2], color: cactusColor, normal: triangleNormal(v0, v3, v2) });
 
       if (seg + 1 == segments) {
         const v4 = [tx, th + (seg + 1.5) * segmentH, tz];
-        tris.push({ verts: [v2, v3, v4], color: cactusColor });
+        tris.push({ verts: [v2, v3, v4], color: cactusColor, normal: triangleNormal(v2, v3, v4) });
       } else if (seg === 0) {
         const v4 = [tx, th - segmentH * 5, tz];
-        tris.push({ verts: [v0, v1, v4], color: cactusColor });
+        tris.push({ verts: [v0, v1, v4], color: cactusColor, normal: triangleNormal(v0, v1, v4) });
       }
     }
   }
@@ -280,10 +280,10 @@ function generateCactus(tx, tz, th, rnd) {
       const v2 = [baseX0, spineH + armThickness, baseZ0];
       const v3 = [baseX1, spineH, baseZ1];
       const v4 = [baseX1, spineH + armThickness, baseZ1];
-      tris.push({ verts: [v0, v3, v1], color: spineColor });
-      tris.push({ verts: [v1, v4, v2], color: spineColor });
-      tris.push({ verts: [v0, v1, v2], color: spineColor });
-      tris.push({ verts: [v3, v4, v1], color: spineColor });
+      tris.push({ verts: [v0, v3, v1], color: spineColor, normal: triangleNormal(v0, v3, v1) });
+      tris.push({ verts: [v1, v4, v2], color: spineColor, normal: triangleNormal(v1, v4, v2) });
+      tris.push({ verts: [v0, v1, v2], color: spineColor, normal: triangleNormal(v0, v1, v2) });
+      tris.push({ verts: [v3, v4, v1], color: spineColor, normal: triangleNormal(v3, v4, v1) });
     }
   }
   return tris;
@@ -304,8 +304,8 @@ function generateEvergreen(tx, tz, th, rnd) {
     const a2 = ((s + 1) / sides) * Math.PI * 2;
     const v1 = [tx + Math.cos(a1) * trunkRad, th, tz + Math.sin(a1) * trunkRad];
     const v2 = [tx + Math.cos(a2) * trunkRad, th, tz + Math.sin(a2) * trunkRad];
-    tris.push({ verts: [v2, v1, trunkTop], color: trunkColor });
-    tris.push({ verts: [v1, v2, [tx, th - 2, tz]], color: trunkColor });
+    tris.push({ verts: [v2, v1, trunkTop], color: trunkColor, normal: triangleNormal(v2, v1, trunkTop) });
+    tris.push({ verts: [v1, v2, [tx, th - 2, tz]], color: trunkColor, normal: triangleNormal(v1, v2, [tx, th - 2, tz]) });
   }
 
   const layers = 6;
@@ -324,8 +324,8 @@ function generateEvergreen(tx, tz, th, rnd) {
       const v1 = [tx + Math.cos(a2) * (layerRad), layerHeight + random2, tz + Math.sin(a2) * (layerRad)];
       const v2 = trunkTop;
       const v3 = [tx, layerHeight, tz]
-      tris.push({ verts: [v0, v2, v1], color: treeColor });
-      tris.push({ verts: [v0, v1, v3], color: treeColor });
+      tris.push({ verts: [v0, v2, v1], color: treeColor, normal: triangleNormal(v0, v2, v1) });
+      tris.push({ verts: [v0, v1, v3], color: treeColor, normal: triangleNormal(v0, v1, v3) });
       random1 = random2;
       random2 = rnd() * 0.75;
     }
@@ -348,8 +348,8 @@ function generateOak(tx, tz, th, rnd) {
     const a2 = ((s + 1) / sides) * Math.PI * 2;
     const v1 = [tx + Math.cos(a1) * trunkRad, th, tz + Math.sin(a1) * trunkRad];
     const v2 = [tx + Math.cos(a2) * trunkRad, th, tz + Math.sin(a2) * trunkRad];
-    tris.push({ verts: [v2, v1, trunkTop], color: trunkColor });
-    tris.push({ verts: [v1, v2, [tx, th-2, tz]], color: trunkColor });
+    tris.push({ verts: [v2, v1, trunkTop], color: trunkColor, normal: triangleNormal(v2, v1, trunkTop) });
+    tris.push({ verts: [v1, v2, [tx, th-2, tz]], color: trunkColor, normal: triangleNormal(v1, v2, [tx, th-2, tz]) });
   }
 
   const layers = 8;
@@ -364,8 +364,8 @@ function generateOak(tx, tz, th, rnd) {
       const v1 = [tx + Math.cos(a2) * layerRad, layerHeight, tz + Math.sin(a2) * layerRad];
       const v2 = trunkTop;
       const v3 = [tx, layerHeight, tz];
-      tris.push({ verts: [v0, v2, v1], color: treeColor });
-      tris.push({ verts: [v0, v1, v3], color: treeColor });
+      tris.push({ verts: [v0, v2, v1], color: treeColor, normal: triangleNormal(v0, v2, v1) });
+      tris.push({ verts: [v0, v1, v3], color: treeColor, normal: triangleNormal(v0, v1, v3) });
     }
   }
   return tris;

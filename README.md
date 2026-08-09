@@ -4,10 +4,17 @@ A flight simulator using the 3D engine and terrain generator I built
 # TODO
 Quick side note low amp will be for the rockyness or smoothness of terrain
 
+- When implemeting runways find their location first, then clamp nearby terrain to generate islands and stuff
+- runways are going to be a circle, but the runway will be a rectangle with air traffic control tower and sock. the rest of the ground forming the circle will be the same color as the nearby terrain, and that will be generated during terrain gen, but the rest will be before
+- disallow trees to generate near structures.
+
+- HUD (minimap showing runways and height, gyroscopes, speedomoter, throttle indicator)
+
 - for LOD, first 5 chunk radius will have chunk res of 4, and next 10 will have 2, and the rest 1
 - for LOD, water must be above 1 chunk res, so it will probably be at 2 for first 5 and the rest 1
 - vegetation (mostly cacti (probably due to tiny spikes)) is the main problem with lag. 
 - new height calculation of terrain is computationaly expensive, optimise (only check tris with same chunk as early out)
+- anti-aliasing and other performance options
 
 - make cockpit window opaque
 - fix anoyance where camera smoothing or somthing creates an ocolating effect
@@ -38,13 +45,15 @@ Quick side note low amp will be for the rockyness or smoothness of terrain
     - stunt points?
 - Audio effects
 
+- mobile freindly
+
 # File Organization
 
 ```
 Flight-Simulator/
 ├── engine.js           # Main game loop and initialization
 ├── index.html          # HTML entry point
-├── src
+└── src
     ├── options.js          # Graphics and performance options
     ├── math.js             # Vector and matrix utilities
     ├── rendering.js        # WebGL rendering system
@@ -53,9 +62,6 @@ Flight-Simulator/
     ├── noise.js            # Procedural generation (Perlin/Simplex noise)
     ├── world.js            # Terrain and world chunk generation
     └── ocean.js            # Ocean surface generation and animation
-└── noTerrain          # Directory for making models or testing webGL buffers
-    ├── index.html          # HTML entry point
-    └── noTerrainEngine.js  # Single-file 3D renderer for making models or testing webGL buffers
 ```
 
 # What ive learned so far (for college aplications)

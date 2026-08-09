@@ -58,6 +58,20 @@ export function lookAtMatrix(eye, target, up, roll) {
   return out;
 }
 
+export function triangleNormal(v0, v1, v2) {
+  const e1 = [
+    v1[0] - v0[0],
+    v1[1] - v0[1],
+    v1[2] - v0[2]
+  ];
+  const e2 = [
+    v2[0] - v0[0],
+    v2[1] - v0[1],
+    v2[2] - v0[2]
+  ];
+  return vec3.norm(vec3.cross(e1, e2));
+}
+
 // Ray-cast down from pos to find ground height
 export function heightAt(x, z, sceneTriangles) {
   // Simple heightfield lookup using scene triangles with barycentric interpolation
